@@ -32,7 +32,7 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "3.0"
+private const val APP_VERSION = "3.1"
 
 /**
  * جسر بين صفحة الأذكار ومحرّك التطبيق.
@@ -121,19 +121,21 @@ class MainActivity : Activity() {
         setContentView(root)
         showWeb()
 
-        // قادم من شاشة القفل: افتح المدرّب مباشرة
-        if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_COACH, false) == true) openCoach()
+        // قادم من شاشة القفل: افتح المدرّب في وضع التحقق
+        if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_COACH, false) == true) {
+            openCoach(intent.getIntExtra(LockActivity.EXTRA_RAKAAT, 4))
+        }
     }
 
-    /** يفتح صفحة «صلِّ معي» داخل الأذكار */
-    private fun openCoach() {
+    /**
+     * يفتح مدرّب الصلاة في وضع فكّ القفل.
+     * نمرّر عدد الركعات في الرابط فتُثبَّت الصلاة المطلوبة،
+     * ولا يستطيع اختيار صلاة أقصر للتحايل.
+     */
+    private fun openCoach(rakaat: Int) {
         showWeb()
-        webView?.postDelayed({
-            webView?.evaluateJavascript(
-                "try{ goto('page-coach') }catch(e){}", null
-            )
-        }, 2500)
-        Toast.makeText(this, "صلِّ أمام الكاميرا ليُفتح القفل", Toast.LENGTH_LONG).show()
+        webView?.loadUrl("$NOOR_WEB#pray=$rakaat")
+        Toast.makeText(this, "أدِّ الصلاة كاملة أمام الكاميرا ليُفتح القفل", Toast.LENGTH_LONG).show()
     }
 
     override fun onResume() {

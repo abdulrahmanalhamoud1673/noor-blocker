@@ -49,7 +49,10 @@ class BlockerService : AccessibilityService() {
         if (pkg.startsWith("com.android.server.telecom")) return
 
         if (!Prefs.isBlocked(this, pkg)) return
-        if (PrayerLock.current(this) == null) return
+        // يُحظر إمّا في وقت الصلاة أو في جولة تحدّي الاستغفار
+        val prayerLock = PrayerLock.current(this) != null
+        val challengeLock = ChallengeLock.active(this)
+        if (!prayerLock && !challengeLock) return
 
         // منع التكرار السريع
         val now = System.currentTimeMillis()

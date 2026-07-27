@@ -18,10 +18,11 @@ import android.widget.TextView
 /**
  * شاشة القفل التي تظهر فوق التطبيق المحظور.
  *
- * لا يوجد زر «صلّيت». الطريق الوحيد لفكّ القفل أن تؤدّي الصلاة
- * كاملة أمام الكاميرا: بعدد ركعاتها، وبترتيب حركاتها، وبزمن
- * معقول. عند التسليم يُفتح القفل وحده — وإلا يبقى مقفلاً حتى
- * ينتهي وقت القفل.
+ * تخدم حالتين:
+ *  • وقت الصلاة — لا يُفتح إلا بأداء الصلاة كاملة أمام الكاميرا.
+ *  • تحدّي الاستغفار — لا يُفتح إلا بإتمام الضغطات مع الذكر.
+ *
+ * لا يوجد زر «تجاوز» في الحالتين.
  */
 class LockActivity : Activity() {
 
@@ -30,6 +31,8 @@ class LockActivity : Activity() {
     private lateinit var titleView: TextView
     private lateinit var stateView: TextView
     private lateinit var timerView: TextView
+    private lateinit var actionBtn: Button
+    private lateinit var noteView: TextView
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -62,7 +65,7 @@ class LockActivity : Activity() {
         }
 
         root.addView(TextView(this).apply {
-            text = "🕌"; textSize = 56f; gravity = Gravity.CENTER
+            text = "🕌"; textSize = 52f; gravity = Gravity.CENTER
         })
 
         titleView = TextView(this).apply {
@@ -75,10 +78,10 @@ class LockActivity : Activity() {
 
         root.addView(TextView(this).apply {
             text = "﴿ إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا ﴾"
-            textSize = 15f
+            textSize = 14f
             setTextColor(Color.parseColor("#9DBDB0"))
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(24))
+            setPadding(0, 0, 0, dp(22))
         })
 
         stateView = TextView(this).apply {
@@ -92,53 +95,77 @@ class LockActivity : Activity() {
             textSize = 40f
             setTextColor(Color.parseColor("#F0D98A"))
             gravity = Gravity.CENTER
-            setPadding(0, dp(4), 0, dp(26))
+            setPadding(0, dp(4), 0, dp(24))
         }
         root.addView(timerView)
 
         /* الطريق الوحيد */
-        root.addView(Button(this).apply {
-            text = "🕋 صلِّ أمام الكاميرا"
+        actionBtn = Button(this).apply {
             textSize = 18f
             setBackgroundColor(Color.parseColor("#D4AF37"))
             setTextColor(Color.parseColor("#16130A"))
             setPadding(0, dp(16), 0, dp(16))
-            setOnClickListener {
-                val lock = PrayerLock.current(this@LockActivity)
-                startActivity(Intent(this@LockActivity, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    putExtra(EXTRA_OPEN_COACH, true)
-                    putExtra(EXTRA_RAKAAT, lock?.rakaat ?: 4)
-                })
-                finish()
-            }
-        }, LinearLayout.LayoutParams(
+            setOnClickListener { openUnlockTask() }
+        }
+        root.addView(actionBtn, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ))
 
-        root.addView(TextView(this).apply {
-            text = "لا يوجد زر آخر لفكّ القفل.\n" +
-                   "أدِّ الصلاة كاملة أمام الكاميرا، وعند التسليم يُفتح وحده."
+        noteView = TextView(this).apply {
             textSize = 12.5f
             setTextColor(Color.parseColor("#6E8F82"))
             gravity = Gravity.CENTER
             setPadding(0, dp(16), 0, 0)
             setLineSpacing(0f, 1.5f)
-        })
+        }
+        root.addView(noteView)
 
         setContentView(root)
         hideSystemBars(root)
         render()
     }
 
+    /** يفتح المهمة المناسبة: صلاة أمام الكاميرا أو تحدّي الضغطات */
+    private fun openUnlockTask() {
+        val lock = PrayerLock.current(this)
+        val i = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        if (lock != null) {
+            i.putExtra(EXTRA_OPEN_COACH, true)
+            i.putExtra(EXTRA_RAKAAT, lock.rakaat)
+        } else {
+            i.putExtra(EXTRA_OPEN_CHALLENGE, true)
+        }
+        startActivity(i)
+        finish()
+    }
+
     private fun render() {
         val lock = PrayerLock.current(this)
-        if (lock == null) { finish(); return }
 
-        titleView.text = "حان الآن وقت صلاة ${lock.prayerName}"
-        stateView.text = "${lock.rakaat} ركعات · ينتهي القفل بعد"
-        val s = lock.secondsLeft
-        timerView.text = String.format("%02d:%02d", s / 60, s % 60)
+        if (lock != null) {
+            titleView.text = "حان الآن وقت صلاة ${lock.prayerName}"
+            stateView.text = "${lock.rakaat} ركعات · ينتهي القفل بعد"
+            val s = lock.secondsLeft
+            timerView.text = String.format("%02d:%02d", s / 60, s % 60)
+            actionBtn.text = "🕋 صلِّ أمام الكاميرا"
+            noteView.text = "لا يوجد زر آخر لفكّ القفل.\n" +
+                            "أدِّ الصلاة كاملة أمام الكاميرا، وعند التسليم يُفتح وحده."
+            return
+        }
+
+        if (ChallengeLock.active(this)) {
+            titleView.text = "حان وقت الاستغفار"
+            stateView.text = "${ChallengeLock.reps(this)} ضغطات مع الذكر"
+            timerView.text = "💪"
+            actionBtn.text = "💪 ابدأ التحدّي"
+            noteView.text = "مع كل ضغطة قل: ${ChallengeLock.phrase(this)}\n" +
+                            "وعند إتمام العدد يُفكّ الحظر إلى الجولة التالية."
+            return
+        }
+
+        finish()
     }
 
     private fun hideSystemBars(v: View) {
@@ -174,5 +201,6 @@ class LockActivity : Activity() {
     companion object {
         const val EXTRA_OPEN_COACH = "open_coach"
         const val EXTRA_RAKAAT = "rakaat"
+        const val EXTRA_OPEN_CHALLENGE = "open_challenge"
     }
 }

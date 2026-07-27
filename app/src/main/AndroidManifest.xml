@@ -21,6 +21,9 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- للتحقق من نطق الذكر في تحدّي الاستغفار -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher_noor"
@@ -51,6 +54,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".ChallengeReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".BootReceiver"
             android:exported="true">
             <intent-filter>
@@ -73,4 +80,13 @@
         </service>
 
     </application>
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
 </manifest>

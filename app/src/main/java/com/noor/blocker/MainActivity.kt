@@ -32,14 +32,17 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "3.1"
+private const val APP_VERSION = "4.0"
 
 /**
  * جسر بين صفحة الأذكار ومحرّك التطبيق.
  * يستدعيه مدرّب الصلاة عند التسليم فيفكّ قفل هذه الصلاة —
  * وهذا هو الإثبات الحقيقي الوحيد: أن تصلّي فعلاً أمام الكاميرا.
  */
-class NoorBridge(private val ctx: android.content.Context) {
+class NoorBridge(
+    private val ctx: android.content.Context,
+    private val onListen: (String) -> Unit
+) {
     @android.webkit.JavascriptInterface
     fun prayerCompleted() {
         val lock = PrayerLock.current(ctx) ?: return
@@ -47,6 +50,22 @@ class NoorBridge(private val ctx: android.content.Context) {
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(ctx, "تقبّل الله منك — فُتح القفل 🤲", Toast.LENGTH_LONG).show()
         }
+    }
+
+    /** أتمّ تحدّي الاستغفار — يُفكّ الحظر حتى الجولة التالية */
+    @android.webkit.JavascriptInterface
+    fun challengeCompleted() {
+        ChallengeLock.clearFor(ctx)
+        val mins = ChallengeLock.intervalMin(ctx)
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            Toast.makeText(ctx, "أحسنت — فُكّ الحظر $mins دقيقة", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** يطلب من أندرويد الإنصات والتحقق من نطق الذكر */
+    @android.webkit.JavascriptInterface
+    fun listenForDhikr(phrase: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { onListen(phrase) }
     }
 }
 
@@ -121,9 +140,11 @@ class MainActivity : Activity() {
         setContentView(root)
         showWeb()
 
-        // قادم من شاشة القفل: افتح المدرّب في وضع التحقق
+        // قادم من شاشة القفل
         if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_COACH, false) == true) {
             openCoach(intent.getIntExtra(LockActivity.EXTRA_RAKAAT, 4))
+        } else if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_CHALLENGE, false) == true) {
+            openChallenge()
         }
     }
 
@@ -136,6 +157,84 @@ class MainActivity : Activity() {
         showWeb()
         webView?.loadUrl("$NOOR_WEB#pray=$rakaat")
         Toast.makeText(this, "أدِّ الصلاة كاملة أمام الكاميرا ليُفتح القفل", Toast.LENGTH_LONG).show()
+    }
+
+    /** يفتح تحدّي الاستغفار بالعدد والذكر المحفوظين */
+    private fun openChallenge() {
+        showWeb()
+        val reps = ChallengeLock.reps(this)
+        val phrase = java.net.URLEncoder.encode(ChallengeLock.phrase(this), "UTF-8")
+        webView?.loadUrl("$NOOR_WEB#challenge=$reps&phrase=$phrase")
+        Toast.makeText(this, "أتمّ الضغطات مع الذكر ليُفكّ الحظر", Toast.LENGTH_LONG).show()
+    }
+
+    /**
+     * يُنصت ويتحقّق من نطق الذكر.
+     * التعرّف على الكلام لا يعمل داخل WebView، فنستخدم محرّك أندرويد
+     * الأصلي ونُعيد النتيجة إلى الصفحة عبر window.__noorSpeech.
+     */
+    private var recognizer: android.speech.SpeechRecognizer? = null
+
+    private fun listenForDhikr(phrase: String) {
+        if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
+            replySpeech(false)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 3)
+            replySpeech(false)
+            return
+        }
+
+        recognizer?.destroy()
+        recognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(this).apply {
+            setRecognitionListener(object : android.speech.RecognitionListener {
+                override fun onResults(results: Bundle?) {
+                    val said = results
+                        ?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.joinToString(" ") ?: ""
+                    replySpeech(matchesDhikr(said, phrase))
+                }
+                override fun onError(error: Int) = replySpeech(false)
+                override fun onReadyForSpeech(p: Bundle?) {}
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(v: Float) {}
+                override fun onBufferReceived(b: ByteArray?) {}
+                override fun onEndOfSpeech() {}
+                override fun onPartialResults(p: Bundle?) {}
+                override fun onEvent(t: Int, p: Bundle?) {}
+            })
+        }
+
+        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                     android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "ar")
+            putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+        }
+        try { recognizer?.startListening(intent) } catch (e: Exception) { replySpeech(false) }
+    }
+
+    /** مقارنة متسامحة: نُجرّد التشكيل ونقبل تطابق أغلب الكلمات */
+    private fun matchesDhikr(said: String, phrase: String): Boolean {
+        fun strip(s: String) = s
+            .replace(Regex("[\\u064B-\\u0652\\u0670\\u0640]"), "")
+            .replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا').replace('ٱ', 'ا')
+            .replace('ة', 'ه').replace('ى', 'ي')
+            .trim()
+
+        val heard = strip(said)
+        val want = strip(phrase).split(Regex("\\s+")).filter { it.length > 2 }
+        if (want.isEmpty()) return heard.isNotEmpty()
+        val hits = want.count { heard.contains(it) }
+        return hits >= (want.size + 1) / 2      // نصف الكلمات فأكثر
+    }
+
+    private fun replySpeech(ok: Boolean) {
+        webView?.evaluateJavascript(
+            "try{ window.__noorSpeech && window.__noorSpeech($ok) }catch(e){}", null
+        )
     }
 
     override fun onResume() {
@@ -238,8 +337,10 @@ class MainActivity : Activity() {
                         request?.grant(request.resources)
                     }
                 }
-                // جسر يسمح لمدرّب الصلاة بفكّ القفل عند التسليم
-                addJavascriptInterface(NoorBridge(this@MainActivity), "NoorApp")
+                // جسر يسمح للمدرّب والتحدّي بفكّ القفل، وللإنصات للذكر
+                addJavascriptInterface(
+                    NoorBridge(this@MainActivity) { p -> listenForDhikr(p) }, "NoorApp"
+                )
                 loadUrl(NOOR_WEB)
             }
         }
@@ -337,8 +438,101 @@ class MainActivity : Activity() {
             })
         })
 
+        /* تحدّي الاستغفار */
+        col.addView(header("٥) تحدّي الاستغفار (حظر دوري)"))
+        col.addView(body("حظر يعود كل فترة تختارها، ولا يُفكّ إلا بضغطات مع الذكر أمام الكاميرا."))
+
+        val chState = body("")
+        col.addView(CheckBox(this).apply {
+            text = "فعّل التحدّي الدوري"
+            textSize = 15.5f
+            setTextColor(Color.parseColor("#EAF5F0"))
+            isChecked = ChallengeLock.enabled(this@MainActivity)
+            setOnCheckedChangeListener { _, on ->
+                ChallengeLock.setEnabled(this@MainActivity, on)
+                renderChallengeState(chState)
+                Toast.makeText(this@MainActivity,
+                    if (on) "بدأ التحدّي — أول جولة بعد ${ChallengeLock.intervalMin(this@MainActivity)} دقيقة"
+                    else "أُوقف التحدّي", Toast.LENGTH_SHORT).show()
+            }
+        })
+        col.addView(chState)
+
+        col.addView(body("كل كم دقيقة يعود الحظر؟"))
+        val intervalLabel = body("${ChallengeLock.intervalMin(this)} دقيقة")
+        col.addView(intervalLabel)
+        col.addView(android.widget.SeekBar(this).apply {
+            max = 7   // ١٥ ٣٠ ٤٥ ٦٠ ٩٠ ١٢٠ ١٨٠ ٢٤٠
+            val steps = intArrayOf(15, 30, 45, 60, 90, 120, 180, 240)
+            progress = steps.indexOf(ChallengeLock.intervalMin(this@MainActivity)).coerceAtLeast(1)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
+                    val m = steps[p]
+                    intervalLabel.text = if (m >= 60) "${m / 60} ساعة${if (m % 60 > 0) " و${m % 60} دقيقة" else ""}"
+                                         else "$m دقيقة"
+                    ChallengeLock.setIntervalMin(this@MainActivity, m)
+                    renderChallengeState(chState)
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+            })
+        })
+
+        col.addView(body("عدد الضغطات المطلوبة"))
+        val repsLabel = body("${ChallengeLock.reps(this)} ضغطة")
+        col.addView(repsLabel)
+        col.addView(android.widget.SeekBar(this).apply {
+            max = 5   // ٥ ١٠ ١٥ ٢٠ ٣٠ ٥٠
+            val steps = intArrayOf(5, 10, 15, 20, 30, 50)
+            progress = steps.indexOf(ChallengeLock.reps(this@MainActivity)).coerceAtLeast(1)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
+                    repsLabel.text = "${steps[p]} ضغطة"
+                    ChallengeLock.setReps(this@MainActivity, steps[p])
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+            })
+        })
+
+        col.addView(body("الذكر الذي تقوله مع كل ضغطة"))
+        val phrases = listOf(
+            "أَسْتَغْفِرُ اللهَ", "الْحَمْدُ لِلّٰهِ", "اللهُ أَكْبَرُ",
+            "سُبْحَانَ اللهِ", "لَا إِلٰهَ إِلَّا اللهُ"
+        )
+        val phraseBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        fun paintPhrases() {
+            phraseBox.removeAllViews()
+            for (ph in phrases) {
+                val chosen = ChallengeLock.phrase(this@MainActivity) == ph
+                phraseBox.addView(Button(this@MainActivity).apply {
+                    text = ph
+                    textSize = 15f
+                    setBackgroundColor(Color.parseColor(if (chosen) "#D4AF37" else "#0A3227"))
+                    setTextColor(Color.parseColor(if (chosen) "#16130A" else "#EAF5F0"))
+                    setOnClickListener {
+                        ChallengeLock.setPhrase(this@MainActivity, ph)
+                        paintPhrases()
+                    }
+                }, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = dp(6) })
+            }
+        }
+        paintPhrases()
+        col.addView(phraseBox)
+
+        col.addView(Button(this).apply {
+            text = "💪 جرّب التحدّي الآن"
+            setOnClickListener { openChallenge() }
+        }, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8) })
+
+        renderChallengeState(chState)
+
         /* اختيار التطبيقات */
-        col.addView(header("٥) التطبيقات التي أريد حظرها"))
+        col.addView(header("٦) التطبيقات التي أريد حظرها"))
         col.addView(body("اختر ما يشتّتك فقط — لا تحظر كل شيء وإلا تعطّل هاتفك وقت الصلاة."))
 
         countView = TextView(this).apply {
@@ -489,6 +683,23 @@ class MainActivity : Activity() {
                     )
                 }
             })
+        }
+    }
+
+    /** يعرض حالة التحدّي: محظور الآن أم كم بقي على الجولة القادمة */
+    private fun renderChallengeState(v: TextView) {
+        if (!ChallengeLock.enabled(this)) {
+            v.text = "التحدّي متوقّف"
+            v.setTextColor(Color.parseColor("#6E8F82"))
+            return
+        }
+        if (ChallengeLock.active(this)) {
+            v.text = "🔒 الحظر فعّال الآن — أتمّ التحدّي لفكّه"
+            v.setTextColor(Color.parseColor("#EF4444"))
+        } else {
+            val s = ChallengeLock.secondsUntilBlock(this)
+            v.text = String.format("✅ مسموح — الجولة القادمة بعد %02d:%02d", s / 60, s % 60)
+            v.setTextColor(Color.parseColor("#10B981"))
         }
     }
 

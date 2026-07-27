@@ -9,7 +9,8 @@ import kotlin.math.ceil
 object Prefs {
     private const val FILE = "noor_blocker"
 
-    private fun p(c: Context) = c.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+    // ليست خاصة: يستخدمها ChallengeLock أيضاً
+    fun p(c: Context) = c.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
     fun blockedApps(c: Context): MutableSet<String> =
         HashSet(p(c).getStringSet("blocked", emptySet()) ?: emptySet())

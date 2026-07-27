@@ -51,8 +51,31 @@ object Prefs {
     fun prayedKey(c: Context): String = p(c).getString("prayed", "") ?: ""
 }
 
-/** معلومات القفل الحالي */
-class LockInfo(val prayerName: String, val secondsLeft: Int, val key: String)
+/**
+ * معلومات القفل الحالي.
+ * @param secondsLeft المتبقي حتى تنتهي نافذة القفل
+ * @param elapsed كم مضى من دخول الوقت — يحدّد متى يُسمح بالفتح
+ * @param rakaat عدد ركعات هذه الصلاة
+ */
+class LockInfo(
+    val prayerName: String,
+    val secondsLeft: Int,
+    val elapsed: Int,
+    val rakaat: Int,
+    val key: String
+) {
+    /**
+     * أقل مدة معقولة لأداء الصلاة — لا يظهر زر الفتح قبلها.
+     * دقيقة وربع لكل ركعة تقريباً، وهي مدة متأنّية لا مستعجلة.
+     */
+    val minSeconds: Int get() = rakaat * 75
+
+    /** هل مضى وقت يكفي لأداء الصلاة فعلاً؟ */
+    val mayUnlock: Boolean get() = elapsed >= minSeconds
+
+    /** المتبقي حتى يُسمح بالفتح */
+    val untilUnlock: Int get() = (minSeconds - elapsed).coerceAtLeast(0)
+}
 
 object PrayerLock {
 
@@ -61,6 +84,9 @@ object PrayerLock {
 
     /** الصلوات التي تُفعّل القفل (بدون الشروق) */
     private val LOCKING = intArrayOf(0, 2, 3, 4, 5)
+
+    /** عدد ركعات كل صلاة بترتيب NAMES */
+    private val RAKAAT = intArrayOf(2, 0, 4, 4, 3, 4)
 
     fun todayTimes(c: Context): DoubleArray {
         val cal = Calendar.getInstance()
@@ -97,7 +123,8 @@ object PrayerLock {
                 val key = stamp + "_" + KEYS[i]
                 if (Prefs.prayedKey(c) == key) return null   // صلّى بالفعل
                 val secs = ceil((t + duration - now) * 60.0).toInt()
-                return LockInfo(NAMES[i], secs, key)
+                val elapsed = ((now - t) * 60.0).toInt()
+                return LockInfo(NAMES[i], secs, elapsed, RAKAAT[i], key)
             }
         }
         return null

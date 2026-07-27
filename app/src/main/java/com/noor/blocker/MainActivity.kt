@@ -32,7 +32,23 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "2.2"
+private const val APP_VERSION = "3.0"
+
+/**
+ * جسر بين صفحة الأذكار ومحرّك التطبيق.
+ * يستدعيه مدرّب الصلاة عند التسليم فيفكّ قفل هذه الصلاة —
+ * وهذا هو الإثبات الحقيقي الوحيد: أن تصلّي فعلاً أمام الكاميرا.
+ */
+class NoorBridge(private val ctx: android.content.Context) {
+    @android.webkit.JavascriptInterface
+    fun prayerCompleted() {
+        val lock = PrayerLock.current(ctx) ?: return
+        Prefs.markPrayed(ctx, lock.key)
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            Toast.makeText(ctx, "تقبّل الله منك — فُتح القفل 🤲", Toast.LENGTH_LONG).show()
+        }
+    }
+}
 
 /** التطبيقات الأكثر تشتيتاً — لاختيارها بضغطة واحدة */
 private val COMMON_DISTRACTIONS = listOf(
@@ -104,6 +120,20 @@ class MainActivity : Activity() {
 
         setContentView(root)
         showWeb()
+
+        // قادم من شاشة القفل: افتح المدرّب مباشرة
+        if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_COACH, false) == true) openCoach()
+    }
+
+    /** يفتح صفحة «صلِّ معي» داخل الأذكار */
+    private fun openCoach() {
+        showWeb()
+        webView?.postDelayed({
+            webView?.evaluateJavascript(
+                "try{ goto('page-coach') }catch(e){}", null
+            )
+        }, 2500)
+        Toast.makeText(this, "صلِّ أمام الكاميرا ليُفتح القفل", Toast.LENGTH_LONG).show()
     }
 
     override fun onResume() {
@@ -206,6 +236,8 @@ class MainActivity : Activity() {
                         request?.grant(request.resources)
                     }
                 }
+                // جسر يسمح لمدرّب الصلاة بفكّ القفل عند التسليم
+                addJavascriptInterface(NoorBridge(this@MainActivity), "NoorApp")
                 loadUrl(NOOR_WEB)
             }
         }

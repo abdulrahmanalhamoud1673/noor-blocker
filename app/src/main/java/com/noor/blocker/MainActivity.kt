@@ -347,8 +347,27 @@ class MainActivity : Activity() {
         loadApps()
         renderApps()
 
+        /* زر تأكيد واضح — الحفظ فوري لكن المستخدم يحتاج أن يرى ذلك */
+        col.addView(Button(this).apply {
+            text = "✓ تم — احفظ وارجع"
+            textSize = 17f
+            setBackgroundColor(Color.parseColor("#D4AF37"))
+            setTextColor(Color.parseColor("#16130A"))
+            setPadding(0, dp(14), 0, dp(14))
+            setOnClickListener {
+                Prefs.setBlockedApps(this@MainActivity, selected)
+                Toast.makeText(
+                    this@MainActivity,
+                    "✅ تم الحفظ — ${selected.size} تطبيق سيُمنع وقت الصلاة",
+                    Toast.LENGTH_LONG
+                ).show()
+                showWeb()
+            }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
+
         col.addView(TextView(this).apply {
-            text = "\nالاختيار يُحفظ فور الضغط — لا حاجة لزر حفظ.\n\n" +
+            text = "\nكل تغيير يُحفظ فوراً — الزر للتأكيد والرجوع فقط.\n\n" +
                    "ملاحظة: لا يقرأ التطبيق محتوى شاشتك إطلاقاً — يعرف فقط اسم التطبيق المفتوح."
             textSize = 12f
             setTextColor(Color.parseColor("#6E8F82"))
@@ -370,13 +389,27 @@ class MainActivity : Activity() {
             .sortedBy { pm.getApplicationLabel(it).toString() }
     }
 
+    /** يحدّث العدّاد ويُظهر أن الاختيار محفوظ */
+    private fun updateCount(justSaved: Boolean = false) {
+        val n = selected.size
+        countView.text = when {
+            n == 0 -> "لم تختر أي تطبيق بعد"
+            justSaved -> "✅ محفوظ — $n تطبيق محظور وقت الصلاة"
+            else -> "$n تطبيق محظور وقت الصلاة"
+        }
+        countView.setTextColor(
+            when {
+                n == 0 -> Color.parseColor("#9DBDB0")
+                n > 15 -> Color.parseColor("#EF4444")
+                else -> Color.parseColor("#10B981")
+            }
+        )
+    }
+
     private fun renderApps() {
         val pm = packageManager
         appsBox.removeAllViews()
-        countView.text = "المحظورة الآن: ${selected.size} تطبيق"
-        countView.setTextColor(
-            if (selected.size > 15) Color.parseColor("#EF4444") else Color.parseColor("#10B981")
-        )
+        updateCount()
 
         val list = allApps.filter {
             filter.isEmpty() ||
@@ -403,10 +436,7 @@ class MainActivity : Activity() {
                 setOnCheckedChangeListener { _, checked ->
                     if (checked) selected.add(pkg) else selected.remove(pkg)
                     save(quiet = true)
-                    countView.text = "المحظورة الآن: ${selected.size} تطبيق"
-                    countView.setTextColor(
-                        if (selected.size > 15) Color.parseColor("#EF4444") else Color.parseColor("#10B981")
-                    )
+                    updateCount(justSaved = true)
                     setTextColor(
                         if (checked) Color.parseColor("#F0D98A") else Color.parseColor("#EAF5F0")
                     )

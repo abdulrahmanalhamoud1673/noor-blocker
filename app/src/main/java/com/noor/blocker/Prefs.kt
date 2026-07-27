@@ -38,6 +38,10 @@ object Prefs {
     fun enabled(c: Context) = p(c).getBoolean("enabled", true)
     fun setEnabled(c: Context, b: Boolean) = p(c).edit().putBoolean("enabled", b).apply()
 
+    /** تنبيه الأذان */
+    fun notifyEnabled(c: Context) = p(c).getBoolean("notify", true)
+    fun setNotifyEnabled(c: Context, b: Boolean) = p(c).edit().putBoolean("notify", b).apply()
+
     /** يسجّل أنه صلّى هذه الصلاة، فلا يُقفل عليه مرة أخرى */
     fun markPrayed(c: Context, key: String) = p(c).edit().putString("prayed", key).apply()
     fun prayedKey(c: Context): String = p(c).getString("prayed", "") ?: ""

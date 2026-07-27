@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">نور — قفل الصلاة</string>
+    <string name="app_name">نور</string>
     <string name="service_label">نور — قفل الصلاة</string>
     <string name="service_desc">يمنع فتح التطبيقات التي اخترتها أثناء وقت الصلاة، حتى تصلّي. لا يقرأ محتوى شاشتك — يعرف فقط اسم التطبيق المفتوح.</string>
 </resources>

@@ -64,17 +64,34 @@ class MainActivity : Activity() {
     private var allApps: List<ApplicationInfo> = emptyList()
     private var filter = ""
 
+    private lateinit var banner: TextView
+    private val ticker = android.os.Handler(android.os.Looper.getMainLooper())
+    private val tick = object : Runnable {
+        override fun run() {
+            updateBanner()
+            ticker.postDelayed(this, 1000)
+        }
+    }
+
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selected.addAll(Prefs.blockedApps(this))
 
+        // إذن الإشعارات مطلوب صراحةً من أندرويد ١٣
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 2)
+        }
+        PrayerAlarm.schedule(this)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#04150F"))
         }
 
+        root.addView(buildBanner())
         root.addView(buildTabs())
 
         content = FrameLayout(this)
@@ -89,6 +106,36 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (blockerView != null) refreshStatus()
+        ticker.post(tick)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        ticker.removeCallbacks(tick)
+    }
+
+    /* ─────────── شريط الصلاة القادمة ─────────── */
+    private fun buildBanner(): TextView {
+        banner = TextView(this).apply {
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#F0D98A"))
+            setBackgroundColor(Color.parseColor("#0A3227"))
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        updateBanner()
+        return banner
+    }
+
+    private fun updateBanner() {
+        if (!::banner.isInitialized) return
+        val (name, at) = PrayerAlarm.nextPrayerAt(this)
+        var left = (at - System.currentTimeMillis()) / 1000
+        if (left < 0) left = 0
+        val h = left / 3600
+        val m = (left % 3600) / 60
+        val s = left % 60
+        banner.text = String.format("🕌 %s بعد  %02d:%02d:%02d", name, h, m, s)
     }
 
     /* ─────────── التبويبان ─────────── */
@@ -197,8 +244,27 @@ class MainActivity : Activity() {
             }
         })
 
+        /* تنبيه الأذان */
+        col.addView(header("٢) تنبيه الأذان"))
+        col.addView(body("ينبّهك بصوت واهتزاز عند دخول كل وقت، حتى لو كان التطبيق مغلقاً."))
+        col.addView(CheckBox(this).apply {
+            text = "فعّل تنبيه الأذان"
+            textSize = 15.5f
+            setTextColor(Color.parseColor("#EAF5F0"))
+            isChecked = Prefs.notifyEnabled(this@MainActivity)
+            setOnCheckedChangeListener { _, checked ->
+                Prefs.setNotifyEnabled(this@MainActivity, checked)
+                PrayerAlarm.schedule(this@MainActivity)
+                Toast.makeText(
+                    this@MainActivity,
+                    if (checked) "سيصلك التنبيه عند كل أذان" else "أُوقف تنبيه الأذان",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        })
+
         /* أوقات اليوم */
-        col.addView(header("٢) أوقات الصلاة اليوم"))
+        col.addView(header("٣) أوقات الصلاة اليوم"))
         timesView = TextView(this).apply {
             textSize = 14.5f
             setTextColor(Color.parseColor("#EAF5F0"))
@@ -207,7 +273,7 @@ class MainActivity : Activity() {
         col.addView(timesView)
 
         /* مدة القفل */
-        col.addView(header("٣) مدة القفل بعد الأذان"))
+        col.addView(header("٤) مدة القفل بعد الأذان"))
         val durLabel = body("${Prefs.lockMinutes(this)} دقيقة")
         col.addView(durLabel)
         col.addView(android.widget.SeekBar(this).apply {
@@ -225,7 +291,7 @@ class MainActivity : Activity() {
         })
 
         /* اختيار التطبيقات */
-        col.addView(header("٤) التطبيقات التي أريد حظرها"))
+        col.addView(header("٥) التطبيقات التي أريد حظرها"))
         col.addView(body("اختر ما يشتّتك فقط — لا تحظر كل شيء وإلا تعطّل هاتفك وقت الصلاة."))
 
         countView = TextView(this).apply {

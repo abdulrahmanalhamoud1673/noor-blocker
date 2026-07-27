@@ -31,6 +31,9 @@ import android.widget.Toast
 /** رابط تطبيق الأذكار والقرآن */
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
+/** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
+private const val APP_VERSION = "2.2"
+
 /** التطبيقات الأكثر تشتيتاً — لاختيارها بضغطة واحدة */
 private val COMMON_DISTRACTIONS = listOf(
     "com.instagram.android",
@@ -184,7 +187,17 @@ class MainActivity : Activity() {
                     javaScriptEnabled = true
                     domStorageEnabled = true
                     mediaPlaybackRequiresUserGesture = false
-                    cacheMode = WebSettings.LOAD_DEFAULT
+                    // لا نخزّن الصفحات: التخزين كان يخلط ملفات قديمة بجديدة
+                    // بعد كل تحديث فيظهر التطبيق فارغاً بلا أذكار ولا سور
+                    cacheMode = WebSettings.LOAD_NO_CACHE
+                }
+
+                // ننظّف ما خزّنه الإصدار السابق مرة واحدة بعد كل تحديث
+                val last = Prefs.lastWebClean(this@MainActivity)
+                if (last != APP_VERSION) {
+                    clearCache(true)
+                    android.webkit.WebStorage.getInstance().deleteAllData()
+                    Prefs.setLastWebClean(this@MainActivity, APP_VERSION)
                 }
                 webViewClient = WebViewClient()
                 webChromeClient = object : WebChromeClient() {

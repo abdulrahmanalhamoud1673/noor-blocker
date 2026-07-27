@@ -38,6 +38,10 @@ object Prefs {
     fun enabled(c: Context) = p(c).getBoolean("enabled", true)
     fun setEnabled(c: Context, b: Boolean) = p(c).edit().putBoolean("enabled", b).apply()
 
+    /** آخر إصدار مُسحت عنده ذاكرة الويب */
+    fun lastWebClean(c: Context): String = p(c).getString("webClean", "") ?: ""
+    fun setLastWebClean(c: Context, v: String) = p(c).edit().putString("webClean", v).apply()
+
     /** تنبيه الأذان */
     fun notifyEnabled(c: Context) = p(c).getBoolean("notify", true)
     fun setNotifyEnabled(c: Context, b: Boolean) = p(c).edit().putBoolean("notify", b).apply()

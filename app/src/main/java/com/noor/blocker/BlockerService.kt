@@ -11,6 +11,24 @@ import android.view.accessibility.AccessibilityEvent
  *
  * لا تقرأ محتوى الشاشة إطلاقاً — فقط اسم حزمة التطبيق المفتوح.
  */
+/** تطبيقات لا تُحجب أبداً مهما اختار المستخدم — الاتصال والطوارئ والإعدادات */
+private val NEVER_BLOCK = setOf(
+    "com.android.phone",
+    "com.android.incallui",
+    "com.android.contacts",
+    "com.android.settings",
+    "com.android.emergency",
+    "com.google.android.dialer",
+    "com.google.android.contacts",
+    "com.samsung.android.dialer",
+    "com.samsung.android.incallui",
+    "com.android.launcher",
+    "com.android.launcher3",
+    "com.google.android.apps.nexuslauncher",
+    "com.sec.android.app.launcher",
+    "com.miui.home"
+)
+
 class BlockerService : AccessibilityService() {
 
     private var lastKickAt = 0L
@@ -24,6 +42,11 @@ class BlockerService : AccessibilityService() {
         // لا نقفل على أنفسنا ولا على واجهة النظام
         if (pkg == packageName) return
         if (pkg == "com.android.systemui") return
+
+        // لا نحجب الاتصال والطوارئ والإعدادات مهما كان الاختيار
+        if (pkg in NEVER_BLOCK) return
+        if (pkg.startsWith("com.android.dialer")) return
+        if (pkg.startsWith("com.android.server.telecom")) return
 
         if (!Prefs.isBlocked(this, pkg)) return
         if (PrayerLock.current(this) == null) return

@@ -22,43 +22,13 @@
 
 ---
 
-## كيف أحصل على ملف APK؟
+## التنزيل — اضغط الرابط من هاتفك
 
-### الطريقة السهلة — GitHub يبنيه لك مجاناً
+**<https://github.com/abdulrahmanalhamoud1673/noor-blocker/releases/latest>**
 
-هذه خمس خطوات، مرة واحدة فقط:
+اضغط على ملف  في صفحة الإصدار فيبدأ التنزيل مباشرة.
 
-**١. أنشئ حساب GitHub** (إذا ما عندك) من [github.com](https://github.com)
-
-**٢. سجّل الدخول من الكمبيوتر.** افتح موجّه الأوامر في مجلد `noor-blocker` ونفّذ:
-
-```bash
-gh auth login
-```
-
-اختر GitHub.com ← HTTPS ← Login with a web browser، وانسخ الرمز الذي يظهر.
-
-**٣. ارفع المشروع:**
-
-```bash
-git init && git add . && git commit -m "نور - قفل الصلاة"
-```
-
-ثم:
-
-```bash
-gh repo create noor-blocker --private --source=. --push
-```
-
-**٤. انتظر البناء.** افتح المستودع على GitHub ← تبويب **Actions**. سترى «بناء تطبيق نور» يعمل. يستغرق ٣–٥ دقائق أول مرة.
-
-**٥. نزّل الملف.** اضغط على البناء المكتمل ← في الأسفل قسم **Artifacts** ← نزّل `noor-blocker-apk`. بداخله ملف `app-debug.apk`.
-
-انقل الملف لهاتفك وثبّته.
-
-### إذا فضّلت Android Studio
-
-نزّل [Android Studio](https://developer.android.com/studio)، افتح مجلد `noor-blocker`، واضغط **Run**. حجم التنزيل حوالي ١ جيجا.
+> بُني تلقائياً على GitHub Actions من هذا الكود — لا تحتاج تنزيل أي برنامج على كمبيوترك.
 
 ---
 

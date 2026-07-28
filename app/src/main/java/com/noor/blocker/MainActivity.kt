@@ -411,6 +411,39 @@ class MainActivity : Activity() {
             }
         })
 
+        col.addView(CheckBox(this).apply {
+            text = "ارفع الأذان بصوت مؤذّن (بدل نغمة قصيرة)"
+            textSize = 15.5f
+            setTextColor(Color.parseColor("#EAF5F0"))
+            isChecked = Prefs.adhanSound(this@MainActivity)
+            setOnCheckedChangeListener { _, checked ->
+                Prefs.setAdhanSound(this@MainActivity, checked)
+                if (!checked) AdhanPlayer.stop(this@MainActivity)
+                Toast.makeText(
+                    this@MainActivity,
+                    if (checked) "سيُرفع الأذان كاملاً عند كل وقت" else "ستصلك نغمة تنبيه قصيرة",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        })
+
+        col.addView(body("الأذان يخرج على صوت المنبّه، فيُسمع حتى لو كان الهاتف صامتاً."))
+
+        /* زرّان للتجربة والإيقاف — لا تنتظر وقت الصلاة لتعرف أنه يعمل */
+        col.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(Button(this@MainActivity).apply {
+                text = "🔊 جرّب الأذان"
+                setOnClickListener { AdhanPlayer.play(this@MainActivity, "التجربة") }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(Button(this@MainActivity).apply {
+                text = "■ أوقف"
+                setOnClickListener { AdhanPlayer.stop(this@MainActivity) }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+        })
+
         /* أوقات اليوم */
         col.addView(header("٣) أوقات الصلاة اليوم"))
         timesView = TextView(this).apply {

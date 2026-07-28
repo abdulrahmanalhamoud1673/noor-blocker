@@ -47,6 +47,10 @@ object Prefs {
     fun notifyEnabled(c: Context) = p(c).getBoolean("notify", true)
     fun setNotifyEnabled(c: Context, b: Boolean) = p(c).edit().putBoolean("notify", b).apply()
 
+    /** رفع الأذان بصوت مؤذّن بدل نغمة إشعار قصيرة */
+    fun adhanSound(c: Context) = p(c).getBoolean("adhanSound", true)
+    fun setAdhanSound(c: Context, b: Boolean) = p(c).edit().putBoolean("adhanSound", b).apply()
+
     /** يسجّل أنه صلّى هذه الصلاة، فلا يُقفل عليه مرة أخرى */
     fun markPrayed(c: Context, key: String) = p(c).edit().putString("prayed", key).apply()
     fun prayedKey(c: Context): String = p(c).getString("prayed", "") ?: ""

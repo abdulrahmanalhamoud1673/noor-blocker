@@ -133,19 +133,24 @@ class AdhanReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val n = Notification.Builder(ctx).let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                Notification.Builder(ctx, PrayerAlarm.CHANNEL_ID) else it
-        }
-            .setSmallIcon(R.drawable.ic_launcher_noor)
-            .setContentTitle("حان الآن وقت صلاة $name")
-            .setContentText("توقّف وأقم الصلاة 🕌")
-            .setContentIntent(open)
-            .setAutoCancel(true)
-            .build()
+        if (Prefs.adhanSound(ctx)) {
+            // أذان كامل بصوت مؤذّن، عبر خدمة أمامية حتى لا يُقطع بعد ثوانٍ
+            AdhanPlayer.play(ctx, name)
+        } else {
+            val n = Notification.Builder(ctx).let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    Notification.Builder(ctx, PrayerAlarm.CHANNEL_ID) else it
+            }
+                .setSmallIcon(R.drawable.ic_launcher_noor)
+                .setContentTitle("حان الآن وقت صلاة $name")
+                .setContentText("توقّف وأقم الصلاة 🕌")
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .build()
 
-        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(1001, n)
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(1001, n)
+        }
 
         // جدولة الصلاة التالية
         PrayerAlarm.schedule(ctx)

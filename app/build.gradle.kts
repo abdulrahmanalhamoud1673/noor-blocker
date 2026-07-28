@@ -11,8 +11,8 @@ android {
         applicationId = "com.noor.blocker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "5.0"
+        versionCode = 10
+        versionName = "5.1"
     }
 
     buildTypes {

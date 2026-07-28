@@ -32,7 +32,10 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "4.0"
+private const val APP_VERSION = "5.1"
+
+/** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
+private const val REQ_MEDIA = 11
 
 /**
  * جسر بين صفحة الأذكار ومحرّك التطبيق.
@@ -145,6 +148,27 @@ class MainActivity : Activity() {
             openCoach(intent.getIntExtra(LockActivity.EXTRA_RAKAAT, 4))
         } else if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_CHALLENGE, false) == true) {
             openChallenge()
+        }
+    }
+
+    /**
+     * بعد ردّ المستخدم على طلب الإذن.
+     * إن منح الكاميرا نُعيد تحميل الصفحة، وإلا بقيت محاولة سابقة فاشلة
+     * عالقة في ذاكرتها فيظنّ أن الإذن لم ينفع.
+     */
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, results: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (requestCode != REQ_MEDIA && requestCode != 1) return
+
+        val granted = permissions.indices.any { i ->
+            permissions[i] == Manifest.permission.CAMERA &&
+            results.getOrNull(i) == PackageManager.PERMISSION_GRANTED
+        }
+        if (granted) {
+            Toast.makeText(this, "تم منح الكاميرا — اضغط «ابدأ» الآن", Toast.LENGTH_LONG).show()
+            webView?.reload()
         }
     }
 
@@ -332,9 +356,42 @@ class MainActivity : Activity() {
                 }
                 webViewClient = WebViewClient()
                 webChromeClient = object : WebChromeClient() {
-                    // نمنح الصفحة إذن الكاميرا (المستخدم منحه للتطبيق أصلاً)
+                    /**
+                     * لا نمنح الصفحة إذناً لا يملكه التطبيق نفسه.
+                     *
+                     * كان هذا سبب تعليق «جارٍ فتح الكاميرا»: نمنح الصفحة الإذن
+                     * بينما النظام لم يمنحه للتطبيق، فيقف طلب الكاميرا عند فتح
+                     * العتاد بلا نتيجة ولا خطأ — تعليق أبدي بلا رسالة.
+                     * الآن: إن كان الإذن ناقصاً نرفض صراحةً (فيصل الخطأ للصفحة
+                     * وتعرض رسالة مفهومة) ونطلبه من النظام في الوقت نفسه.
+                     */
                     override fun onPermissionRequest(request: PermissionRequest?) {
-                        request?.grant(request.resources)
+                        if (request == null) return
+                        val needed = mutableListOf<String>()
+
+                        for (res in request.resources) {
+                            val perm = when (res) {
+                                PermissionRequest.RESOURCE_VIDEO_CAPTURE -> Manifest.permission.CAMERA
+                                PermissionRequest.RESOURCE_AUDIO_CAPTURE -> Manifest.permission.RECORD_AUDIO
+                                else -> null
+                            } ?: continue
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                                checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                                needed.add(perm)
+                            }
+                        }
+
+                        if (needed.isEmpty()) {
+                            request.grant(request.resources)
+                        } else {
+                            request.deny()
+                            requestPermissions(needed.toTypedArray(), REQ_MEDIA)
+                            Toast.makeText(
+                                this@MainActivity,
+                                "اسمح بالكاميرا ثم اضغط «ابدأ» مرة أخرى",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                 }
                 // جسر يسمح للمدرّب والتحدّي بفكّ القفل، وللإنصات للذكر

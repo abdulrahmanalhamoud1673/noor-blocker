@@ -146,12 +146,16 @@ class LockActivity : Activity() {
 
         if (lock != null) {
             titleView.text = "حان الآن وقت صلاة ${lock.prayerName}"
-            stateView.text = "${lock.rakaat} ركعات · ينتهي القفل بعد"
+            stateView.text = "${lock.rakaat} ركعات · يُفتح الهاتف بعد"
             val s = lock.secondsLeft
             timerView.text = String.format("%02d:%02d", s / 60, s % 60)
-            actionBtn.text = "🕋 صلِّ أمام الكاميرا"
-            noteView.text = "لا يوجد زر آخر لفكّ القفل.\n" +
-                            "أدِّ الصلاة كاملة أمام الكاميرا، وعند التسليم يُفتح وحده."
+
+            // لا زرّ يفكّ القفل: الوقت وحده يفكّه. الزرّ يفتح المدرّب
+            // لتقضي المدة في الصلاة لا في انتظار العدّاد.
+            actionBtn.text = "🕋 صلِّ مع الكاميرا"
+            noteView.text = "الهاتف مقفل بالكامل حتى ينتهي العدّاد.\n" +
+                            "لا يوجد زرّ لفكّه — ولا حاجة لأن تفعل شيئاً.\n" +
+                            "الاتصال والطوارئ تبقى متاحة دائماً."
             return
         }
 

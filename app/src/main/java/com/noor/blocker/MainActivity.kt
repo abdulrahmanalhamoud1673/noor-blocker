@@ -32,7 +32,7 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "5.1"
+private const val APP_VERSION = "6.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -511,7 +511,12 @@ class MainActivity : Activity() {
         col.addView(timesView)
 
         /* مدة القفل */
-        col.addView(header("٤) مدة القفل بعد الأذان"))
+        col.addView(header("٤) مدة قفل الهاتف بعد الأذان"))
+        col.addView(body(
+            "عند دخول الوقت يُقفل الهاتف بالكامل — كل التطبيقات والشاشة " +
+            "الرئيسية — ولا يوجد زرّ لفكّه. يُفتح وحده عند انتهاء المدة.\n" +
+            "الاتصال والطوارئ والإعدادات تبقى متاحة دائماً."
+        ))
         val durLabel = body("${Prefs.lockMinutes(this)} دقيقة")
         col.addView(durLabel)
         col.addView(android.widget.SeekBar(this).apply {
@@ -622,8 +627,11 @@ class MainActivity : Activity() {
         renderChallengeState(chState)
 
         /* اختيار التطبيقات */
-        col.addView(header("٦) التطبيقات التي أريد حظرها"))
-        col.addView(body("اختر ما يشتّتك فقط — لا تحظر كل شيء وإلا تعطّل هاتفك وقت الصلاة."))
+        col.addView(header("٦) تطبيقات تحدّي الاستغفار"))
+        col.addView(body(
+            "هذه القائمة لتحدّي الاستغفار وحده.\n" +
+            "قفل الصلاة لم يعد يعتمد عليها — فهو يقفل الهاتف كلّه."
+        ))
 
         countView = TextView(this).apply {
             textSize = 15f

@@ -126,7 +126,8 @@ object PrayerLock {
             if (t.isNaN()) continue
             if (now >= t && now < t + duration) {
                 val key = stamp + "_" + KEYS[i]
-                if (Prefs.prayedKey(c) == key) return null   // صلّى بالفعل
+                // الوقت وحده يفكّ القفل — لا زرّ ولا كاميرا ولا استثناء.
+                // هذا ما طلبه صراحةً: مدّة يختارها ثم يُفتح الهاتف.
                 val secs = ceil((t + duration - now) * 60.0).toInt()
                 val elapsed = ((now - t) * 60.0).toInt()
                 return LockInfo(NAMES[i], secs, elapsed, RAKAAT[i], key)

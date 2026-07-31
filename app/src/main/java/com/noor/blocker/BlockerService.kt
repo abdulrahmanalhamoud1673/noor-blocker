@@ -11,8 +11,15 @@ import android.view.accessibility.AccessibilityEvent
  *
  * لا تقرأ محتوى الشاشة إطلاقاً — فقط اسم حزمة التطبيق المفتوح.
  */
-/** تطبيقات لا تُحجب أبداً مهما اختار المستخدم — الاتصال والطوارئ والإعدادات */
-private val NEVER_BLOCK = setOf(
+/**
+ * لا تُحجب أبداً في أي وضع: الاتصال والطوارئ وجهات الاتصال، ومعها
+ * الإعدادات.
+ *
+ * الإعدادات مفتوحة عمداً وليست سهواً: هي منفذك الوحيد لإيقاف الخدمة
+ * لو حدث خلل. إغلاقها يعني احتمال أن تُحبس في هاتفك بلا مخرج، وهذا
+ * ثمن لا يستحقه أي قدر من الصرامة.
+ */
+private val ALWAYS_ALLOWED = setOf(
     "com.android.phone",
     "com.android.incallui",
     "com.android.contacts",
@@ -22,11 +29,27 @@ private val NEVER_BLOCK = setOf(
     "com.google.android.contacts",
     "com.samsung.android.dialer",
     "com.samsung.android.incallui",
+    "com.android.settings.intelligence",
+    "com.samsung.android.app.telephonyui"
+)
+
+/**
+ * الشاشات الرئيسية. تُحجب في قفل الصلاة (لأنه قفل للهاتف كلّه)
+ * وتُترك في تحدّي الاستغفار (لأنه حظر لتطبيقات مختارة فقط).
+ */
+private val LAUNCHERS = setOf(
     "com.android.launcher",
     "com.android.launcher3",
     "com.google.android.apps.nexuslauncher",
     "com.sec.android.app.launcher",
-    "com.miui.home"
+    "com.miui.home",
+    "com.huawei.android.launcher",
+    "com.oppo.launcher",
+    "com.oneplus.launcher",
+    "net.oneplus.launcher",
+    "com.realme.launcher",
+    "com.transsion.XOSLauncher",
+    "com.microsoft.launcher"
 )
 
 class BlockerService : AccessibilityService() {
@@ -43,16 +66,22 @@ class BlockerService : AccessibilityService() {
         if (pkg == packageName) return
         if (pkg == "com.android.systemui") return
 
-        // لا نحجب الاتصال والطوارئ والإعدادات مهما كان الاختيار
-        if (pkg in NEVER_BLOCK) return
+        // الاتصال والطوارئ والإعدادات مفتوحة دائماً — لا استثناء
+        if (pkg in ALWAYS_ALLOWED) return
         if (pkg.startsWith("com.android.dialer")) return
         if (pkg.startsWith("com.android.server.telecom")) return
+        if (pkg.contains("emergency")) return
 
-        if (!Prefs.isBlocked(this, pkg)) return
-        // يُحظر إمّا في وقت الصلاة أو في جولة تحدّي الاستغفار
         val prayerLock = PrayerLock.current(this) != null
         val challengeLock = ChallengeLock.active(this)
         if (!prayerLock && !challengeLock) return
+
+        // قفل الصلاة يشمل الهاتف كلّه: كل تطبيق وكل شاشة رئيسية.
+        // أما تحدّي الاستغفار فيبقى على التطبيقات المختارة وحدها.
+        if (!prayerLock) {
+            if (pkg in LAUNCHERS) return
+            if (!Prefs.isBlocked(this, pkg)) return
+        }
 
         // منع التكرار السريع
         val now = System.currentTimeMillis()

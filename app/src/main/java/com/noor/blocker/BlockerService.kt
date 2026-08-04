@@ -1,7 +1,12 @@
 package com.noor.blocker
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -55,6 +60,64 @@ private val LAUNCHERS = setOf(
 class BlockerService : AccessibilityService() {
 
     private var lastKickAt = 0L
+    private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * يراقب الرصيد أثناء الصرف.
+     * بدونه لن يظهر القفل إلا عند تبديل التطبيق التالي، فيستمر
+     * الاستخدام بعد نفاد الرصيد إلى أن يخرج بنفسه.
+     */
+    private val watcher = object : Runnable {
+        override fun run() {
+            if (!Credit.isSpending(this@BlockerService)) return
+            if (Credit.isEmpty(this@BlockerService)) {
+                Credit.stopSpending(this@BlockerService)
+                showLock()
+                return
+            }
+            handler.postDelayed(this, 1000)
+        }
+    }
+
+    private fun startWatching() {
+        handler.removeCallbacks(watcher)
+        handler.postDelayed(watcher, 1000)
+    }
+
+    private fun stopWatching() = handler.removeCallbacks(watcher)
+
+    /** إطفاء الشاشة يعني أنك لا تستخدم شيئاً — نوقف الصرف فوراً */
+    private val screenOff = object : BroadcastReceiver() {
+        override fun onReceive(c: Context?, i: Intent?) {
+            Credit.stopSpending(this@BlockerService)
+            stopWatching()
+        }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
+    }
+
+    override fun onDestroy() {
+        try { unregisterReceiver(screenOff) } catch (_: Exception) {}
+        stopWatching()
+        Credit.stopSpending(this)
+        super.onDestroy()
+    }
+
+    private fun showLock() {
+        val now = System.currentTimeMillis()
+        if (now - lastKickAt < 700) return
+        lastKickAt = now
+        startActivity(Intent(this, LockActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                Intent.FLAG_ACTIVITY_NO_ANIMATION
+            )
+        })
+    }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
@@ -72,30 +135,34 @@ class BlockerService : AccessibilityService() {
         if (pkg.startsWith("com.android.server.telecom")) return
         if (pkg.contains("emergency")) return
 
-        val prayerLock = PrayerLock.current(this) != null
-        val challengeLock = ChallengeLock.active(this)
-        if (!prayerLock && !challengeLock) return
-
-        // قفل الصلاة يشمل الهاتف كلّه: كل تطبيق وكل شاشة رئيسية.
-        // أما تحدّي الاستغفار فيبقى على التطبيقات المختارة وحدها.
-        if (!prayerLock) {
-            if (pkg in LAUNCHERS) return
-            if (!Prefs.isBlocked(this, pkg)) return
+        // قفل الصلاة يشمل الهاتف كلّه: كل تطبيق وكل شاشة رئيسية
+        if (PrayerLock.current(this) != null) {
+            Credit.stopSpending(this)      // لا يُصرف رصيدك أثناء قفل الصلاة
+            stopWatching()
+            showLock()
+            return
         }
 
-        // منع التكرار السريع
-        val now = System.currentTimeMillis()
-        if (now - lastKickAt < 700) return
-        lastKickAt = now
+        // ── نظام النقاط ──
+        // الرصيد لا يُصرف إلا داخل تطبيق محظور. أي شاشة أخرى توقف العدّاد.
+        val onBlockedApp = pkg !in LAUNCHERS && Prefs.isBlocked(this, pkg)
 
-        val i = Intent(this, LockActivity::class.java).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                Intent.FLAG_ACTIVITY_NO_ANIMATION
-            )
+        if (!onBlockedApp) {
+            Credit.stopSpending(this)      // خرجت — يتجمّد رصيدك كما هو
+            stopWatching()
+            return
         }
-        startActivity(i)
+
+        if (!ChallengeLock.enabled(this)) return
+
+        if (Credit.isEmpty(this)) {        // نفد الرصيد — اكسب غيره
+            stopWatching()
+            showLock()
+            return
+        }
+
+        Credit.startSpending(this)         // دخلت — يبدأ العدّ
+        startWatching()
     }
 
     override fun onInterrupt() {}

@@ -25,14 +25,13 @@ object ChallengeLock {
     fun enabled(c: Context) = Prefs.p(c).getBoolean("chEnabled", false)
     fun setEnabled(c: Context, b: Boolean) {
         Prefs.p(c).edit().putBoolean("chEnabled", b).apply()
-        if (b) clearFor(c) else cancelAlarm(c)   // نبدأ بفترة سماح كي لا يُحظر فوراً
+        if (b) clearFor(c) else { cancelAlarm(c); Credit.stopSpending(c) }
     }
 
-    /** كل كم دقيقة يعود الحظر */
+    /** كل كم دقيقة يعود الحظر — بقي للتوافق مع الإصدارات القديمة */
     fun intervalMin(c: Context) = Prefs.p(c).getInt("chInterval", 30)
     fun setIntervalMin(c: Context, m: Int) {
         Prefs.p(c).edit().putInt("chInterval", m).apply()
-        clearFor(c)
     }
 
     fun reps(c: Context) = Prefs.p(c).getInt("chReps", 10)
@@ -42,24 +41,17 @@ object ChallengeLock {
         Prefs.p(c).getString("chPhrase", "أَسْتَغْفِرُ اللهَ") ?: "أَسْتَغْفِرُ اللهَ"
     fun setPhrase(c: Context, s: String) = Prefs.p(c).edit().putString("chPhrase", s).apply()
 
-    private fun clearedUntil(c: Context) = Prefs.p(c).getLong("chCleared", 0L)
+    /**
+     * هل الحظر فعّال الآن؟
+     * لم يعد سؤالاً عن الساعة بل عن الرصيد: تُحظر حين ينفد.
+     */
+    fun active(c: Context): Boolean = enabled(c) && Credit.isEmpty(c)
 
-    /** هل الحظر فعّال الآن؟ */
-    fun active(c: Context): Boolean =
-        enabled(c) && System.currentTimeMillis() >= clearedUntil(c)
+    /** المتبقي من رصيدك بالثواني */
+    fun secondsUntilBlock(c: Context): Long = Credit.remainingSec(c).toLong()
 
-    /** المتبقي حتى عودة الحظر بالثواني (0 إذا كان فعّالاً الآن) */
-    fun secondsUntilBlock(c: Context): Long {
-        val left = (clearedUntil(c) - System.currentTimeMillis()) / 1000
-        return if (left > 0) left else 0
-    }
-
-    /** يمنح فترة سماح كاملة ويجدول تنبيه عودة الحظر */
-    fun clearFor(c: Context) {
-        val until = System.currentTimeMillis() + intervalMin(c) * 60_000L
-        Prefs.p(c).edit().putLong("chCleared", until).apply()
-        scheduleAlarm(c, until)
-    }
+    /** أتمّ الجولة — يُضاف الرصيد ويُعاد ضبط العدّاد */
+    fun clearFor(c: Context): Int = Credit.award(c)
 
     private fun scheduleAlarm(c: Context, at: Long) {
         if (!enabled(c)) return

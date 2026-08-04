@@ -32,7 +32,7 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "6.0"
+private const val APP_VERSION = "7.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -55,13 +55,13 @@ class NoorBridge(
         }
     }
 
-    /** أتمّ تحدّي الاستغفار — يُفكّ الحظر حتى الجولة التالية */
+    /** أتمّ تحدّي الاستغفار — يُضاف الرصيد */
     @android.webkit.JavascriptInterface
     fun challengeCompleted() {
-        ChallengeLock.clearFor(ctx)
-        val mins = ChallengeLock.intervalMin(ctx)
+        val mins = Credit.award(ctx)
+        val total = Credit.format(ctx)
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            Toast.makeText(ctx, "أحسنت — فُكّ الحظر $mins دقيقة", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, "أحسنت — كسبتَ $mins دقيقة · رصيدك $total", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -293,7 +293,9 @@ class MainActivity : Activity() {
         val h = left / 3600
         val m = (left % 3600) / 60
         val s = left % 60
-        banner.text = String.format("🕌 %s بعد  %02d:%02d:%02d", name, h, m, s)
+        val prayer = String.format("🕌 %s بعد  %02d:%02d:%02d", name, h, m, s)
+        banner.text = if (ChallengeLock.enabled(this))
+            "$prayer   ·   💎 ${Credit.format(this)}" else prayer
     }
 
     /* ─────────── التبويبان ─────────── */
@@ -533,13 +535,20 @@ class MainActivity : Activity() {
             })
         })
 
-        /* تحدّي الاستغفار */
-        col.addView(header("٥) تحدّي الاستغفار (حظر دوري)"))
-        col.addView(body("حظر يعود كل فترة تختارها، ولا يُفكّ إلا بضغطات مع الذكر أمام الكاميرا."))
+        /* نظام النقاط */
+        col.addView(header("٥) نظام النقاط — اكسب وقتك"))
+        col.addView(body(
+            "الضغطات مع الذكر تشتري لك دقائق استخدام.
+" +
+            "والدقائق لا تُصرف إلا وأنت داخل التطبيقات المحظورة: تخرج " +
+            "من إنستغرام فيتوقّف العدّاد ويبقى رصيدك كما هو، وتعود فيُستأنف.
+" +
+            "ينفد الرصيد فتُقفل حتى تكسب غيره."
+        ))
 
         val chState = body("")
         col.addView(CheckBox(this).apply {
-            text = "فعّل التحدّي الدوري"
+            text = "فعّل نظام النقاط"
             textSize = 15.5f
             setTextColor(Color.parseColor("#EAF5F0"))
             isChecked = ChallengeLock.enabled(this@MainActivity)
@@ -547,25 +556,23 @@ class MainActivity : Activity() {
                 ChallengeLock.setEnabled(this@MainActivity, on)
                 renderChallengeState(chState)
                 Toast.makeText(this@MainActivity,
-                    if (on) "بدأ التحدّي — أول جولة بعد ${ChallengeLock.intervalMin(this@MainActivity)} دقيقة"
-                    else "أُوقف التحدّي", Toast.LENGTH_SHORT).show()
+                    if (on) "فُعّل — اكسب رصيداً لتستخدم التطبيقات المحظورة"
+                    else "أُوقف نظام النقاط", Toast.LENGTH_SHORT).show()
             }
         })
         col.addView(chState)
 
-        col.addView(body("كل كم دقيقة يعود الحظر؟"))
-        val intervalLabel = body("${ChallengeLock.intervalMin(this)} دقيقة")
-        col.addView(intervalLabel)
+        col.addView(body("كم دقيقة تكسبها كل ضغطة؟"))
+        val perRepLabel = body("${Credit.minutesPerRep(this)} دقيقة لكل ضغطة")
+        col.addView(perRepLabel)
         col.addView(android.widget.SeekBar(this).apply {
-            max = 7   // ١٥ ٣٠ ٤٥ ٦٠ ٩٠ ١٢٠ ١٨٠ ٢٤٠
-            val steps = intArrayOf(15, 30, 45, 60, 90, 120, 180, 240)
-            progress = steps.indexOf(ChallengeLock.intervalMin(this@MainActivity)).coerceAtLeast(1)
+            max = 4   // ١ ٢ ٣ ٥ ١٠
+            val steps = intArrayOf(1, 2, 3, 5, 10)
+            progress = steps.indexOf(Credit.minutesPerRep(this@MainActivity)).coerceAtLeast(1)
             setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
-                    val m = steps[p]
-                    intervalLabel.text = if (m >= 60) "${m / 60} ساعة${if (m % 60 > 0) " و${m % 60} دقيقة" else ""}"
-                                         else "$m دقيقة"
-                    ChallengeLock.setIntervalMin(this@MainActivity, m)
+                    Credit.setMinutesPerRep(this@MainActivity, steps[p])
+                    perRepLabel.text = "${steps[p]} دقيقة لكل ضغطة"
                     renderChallengeState(chState)
                 }
                 override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
@@ -584,6 +591,7 @@ class MainActivity : Activity() {
                 override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
                     repsLabel.text = "${steps[p]} ضغطة"
                     ChallengeLock.setReps(this@MainActivity, steps[p])
+                    renderChallengeState(chState)
                 }
                 override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
@@ -784,19 +792,22 @@ class MainActivity : Activity() {
         }
     }
 
-    /** يعرض حالة التحدّي: محظور الآن أم كم بقي على الجولة القادمة */
+    /** يعرض رصيدك الآن وقيمة الجولة القادمة */
     private fun renderChallengeState(v: TextView) {
         if (!ChallengeLock.enabled(this)) {
-            v.text = "التحدّي متوقّف"
+            v.text = "نظام النقاط متوقّف"
             v.setTextColor(Color.parseColor("#6E8F82"))
             return
         }
-        if (ChallengeLock.active(this)) {
-            v.text = "🔒 الحظر فعّال الآن — أتمّ التحدّي لفكّه"
+        val reward = "الجولة: ${ChallengeLock.reps(this)} ضغطة = ${Credit.rewardMinutes(this)} دقيقة"
+        if (Credit.isEmpty(this)) {
+            v.text = "🔒 رصيدك صفر — أتمّ جولة لتكسب
+$reward"
             v.setTextColor(Color.parseColor("#EF4444"))
         } else {
-            val s = ChallengeLock.secondsUntilBlock(this)
-            v.text = String.format("✅ مسموح — الجولة القادمة بعد %02d:%02d", s / 60, s % 60)
+            val flow = if (Credit.isSpending(this)) "⏳ يُصرف الآن" else "⏸ متوقّف — لست في تطبيق محظور"
+            v.text = "💎 رصيدك ${Credit.format(this)}  ·  $flow
+$reward"
             v.setTextColor(Color.parseColor("#10B981"))
         }
     }

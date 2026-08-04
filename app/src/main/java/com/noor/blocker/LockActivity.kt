@@ -160,12 +160,15 @@ class LockActivity : Activity() {
         }
 
         if (ChallengeLock.active(this)) {
-            titleView.text = "حان وقت الاستغفار"
-            stateView.text = "${ChallengeLock.reps(this)} ضغطات مع الذكر"
-            timerView.text = "💪"
-            actionBtn.text = "💪 ابدأ التحدّي"
+            val reps = ChallengeLock.reps(this)
+            titleView.text = "نفد رصيدك"
+            stateView.text = "$reps ضغطات مع الذكر تكسبك"
+            timerView.text = "${Credit.rewardMinutes(this)} دقيقة"
+            actionBtn.text = "💪 اكسب رصيداً"
             noteView.text = "مع كل ضغطة قل: ${ChallengeLock.phrase(this)}\n" +
-                            "وعند إتمام العدد يُفكّ الحظر إلى الجولة التالية."
+                            "الرصيد لا يُصرف إلا وأنت داخل التطبيقات المحظورة — " +
+                            "تخرج منها فيتوقّف العدّ ويبقى لك.\n" +
+                            "كسبتَ اليوم ${Credit.earnedMinutes(this)} دقيقة، وصرفتَ ${Credit.spentMinutes(this)}."
             return
         }
 

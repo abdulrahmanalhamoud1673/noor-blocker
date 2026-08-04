@@ -133,6 +133,7 @@ class AdhanReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        EventLog.add(ctx, EventLog.ADHAN, "أذان $name")
         if (Prefs.adhanSound(ctx)) {
             // أذان كامل بصوت مؤذّن، عبر خدمة أمامية حتى لا يُقطع بعد ثوانٍ
             AdhanPlayer.play(ctx, name)
@@ -157,6 +158,8 @@ class AdhanReceiver : BroadcastReceiver() {
         if (Prefs.enabled(ctx)) {
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 if (PrayerLock.current(ctx) != null) {
+                    EventLog.add(ctx, EventLog.PRAYER,
+                        "قُفل الهاتف لصلاة $name — ${Prefs.lockMinutes(ctx)} دقيقة")
                     ctx.startActivity(Intent(ctx, LockActivity::class.java).apply {
                         addFlags(
                             Intent.FLAG_ACTIVITY_NEW_TASK or

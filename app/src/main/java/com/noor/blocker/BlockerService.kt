@@ -72,6 +72,8 @@ class BlockerService : AccessibilityService() {
             if (!Credit.isSpending(this@BlockerService)) return
             if (Credit.isEmpty(this@BlockerService)) {
                 Credit.stopSpending(this@BlockerService)
+                EventLog.add(this@BlockerService, EventLog.BLOCK,
+                    "نفد رصيدك أثناء الاستخدام — أُقفل")
                 showLock()
                 return
             }
@@ -89,8 +91,7 @@ class BlockerService : AccessibilityService() {
     /** إطفاء الشاشة يعني أنك لا تستخدم شيئاً — نوقف الصرف فوراً */
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) {
-            Credit.stopSpending(this@BlockerService)
-            stopWatching()
+            leaveBlockedApp()
         }
     }
 
@@ -143,13 +144,13 @@ class BlockerService : AccessibilityService() {
             return
         }
 
+
         // ── نظام النقاط ──
         // الرصيد لا يُصرف إلا داخل تطبيق محظور. أي شاشة أخرى توقف العدّاد.
         val onBlockedApp = pkg !in LAUNCHERS && Prefs.isBlocked(this, pkg)
 
         if (!onBlockedApp) {
-            Credit.stopSpending(this)      // خرجت — يتجمّد رصيدك كما هو
-            stopWatching()
+            leaveBlockedApp()              // خرجت — يتجمّد رصيدك كما هو
             return
         }
 
@@ -157,13 +158,38 @@ class BlockerService : AccessibilityService() {
 
         if (Credit.isEmpty(this)) {        // نفد الرصيد — اكسب غيره
             stopWatching()
+            EventLog.add(this, EventLog.BLOCK, "حُظر ${appLabel(pkg)} — الرصيد صفر")
             showLock()
             return
         }
 
-        Credit.startSpending(this)         // دخلت — يبدأ العدّ
+        if (!Credit.isSpending(this)) {
+            EventLog.add(this, EventLog.SPEND,
+                "دخلتَ ${appLabel(pkg)} — الرصيد ${Credit.format(this)}")
+        }
+        Credit.startSpending(this, pkg)    // دخلت — يبدأ العدّ
         startWatching()
     }
+
+    /** يوقف الصرف ويسجّل كم استُهلك في هذه الجلسة */
+    private fun leaveBlockedApp() {
+        if (Credit.isSpending(this)) {
+            val pkg = Credit.spendingPkg(this)
+            val usedSec = (Credit.stopSpending(this) / 1000).toInt()
+            if (usedSec >= 5) {
+                val spent = String.format("%d:%02d", usedSec / 60, usedSec % 60)
+                EventLog.add(this, EventLog.SPEND,
+                    "خرجتَ من ${appLabel(pkg)} بعد $spent — بقي ${Credit.format(this)}")
+            }
+        }
+        stopWatching()
+    }
+
+    /** اسم التطبيق كما يراه المستخدم لا اسم الحزمة */
+    private fun appLabel(pkg: String): String = try {
+        val pm = packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+    } catch (_: Exception) { pkg }
 
     override fun onInterrupt() {}
 }

@@ -23,9 +23,11 @@ object Credit {
 
     private const val BALANCE = "crBalance"
     private const val SINCE = "crSince"
+    private const val PKG = "crPkg"
     private const val PER_REP = "crPerRep"
     private const val EARNED = "crEarnedTotal"
     private const val SPENT = "crSpentTotal"
+    private const val APP_PREFIX = "crApp_"
 
     /** كم دقيقة تكسبها كل ضغطة */
     fun minutesPerRep(c: Context) = Prefs.p(c).getInt(PER_REP, 2)
@@ -51,23 +53,68 @@ object Credit {
     /** هل نحن الآن في وضع الصرف؟ */
     fun isSpending(c: Context) = spendingSince(c) != 0L
 
+    /** أيّ تطبيق يُصرف عليه الآن */
+    fun spendingPkg(c: Context): String = Prefs.p(c).getString(PKG, "") ?: ""
+
     /** دخل تطبيقاً محظوراً — يبدأ العدّاد */
-    fun startSpending(c: Context) {
+    fun startSpending(c: Context, pkg: String = "") {
         if (spendingSince(c) != 0L) return
-        Prefs.p(c).edit().putLong(SINCE, System.currentTimeMillis()).apply()
+        Prefs.p(c).edit()
+            .putLong(SINCE, System.currentTimeMillis())
+            .putString(PKG, pkg)
+            .apply()
     }
 
     /** خرج من التطبيقات المحظورة (أو أطفأ الشاشة) — يتوقّف العدّاد ويُثبَّت الرصيد */
-    fun stopSpending(c: Context) {
+    fun stopSpending(c: Context): Long {
         val since = spendingSince(c)
-        if (since == 0L) return
+        if (since == 0L) return 0
         val used = (System.currentTimeMillis() - since).coerceAtLeast(0)
-        val left = (balance(c) - used).coerceAtLeast(0)
-        Prefs.p(c).edit()
-            .putLong(BALANCE, left)
+        val real = minOf(used, balance(c))          // لا نحتسب أكثر مما كان لديه
+        val pkg = spendingPkg(c)
+        val e = Prefs.p(c).edit()
+            .putLong(BALANCE, (balance(c) - used).coerceAtLeast(0))
             .putLong(SINCE, 0L)
-            .putLong(SPENT, Prefs.p(c).getLong(SPENT, 0L) + minOf(used, balance(c)))
-            .apply()
+            .putString(PKG, "")
+            .putLong(SPENT, Prefs.p(c).getLong(SPENT, 0L) + real)
+            .putLong(dayKey(), Prefs.p(c).getLong(dayKey(), 0L) + real)
+        if (pkg.isNotEmpty()) {
+            e.putLong(APP_PREFIX + pkg, Prefs.p(c).getLong(APP_PREFIX + pkg, 0L) + real)
+        }
+        e.apply()
+        return real
+    }
+
+    /** مفتاح إجمالي اليوم — يتغيّر مع تغيّر التاريخ فيبدأ العدّ تلقائياً */
+    private fun dayKey(): String {
+        val c = java.util.Calendar.getInstance()
+        return String.format("crDay_%04d-%02d-%02d", c.get(java.util.Calendar.YEAR),
+            c.get(java.util.Calendar.MONTH) + 1, c.get(java.util.Calendar.DAY_OF_MONTH))
+    }
+
+    fun spentTodayMinutes(c: Context) = (Prefs.p(c).getLong(dayKey(), 0L) / 60_000L).toInt()
+
+    /** كم دقيقة صُرفت على كل تطبيق — مرتّبة تنازلياً */
+    fun perApp(c: Context): List<Pair<String, Int>> =
+        Prefs.p(c).all.entries
+            .filter { it.key.startsWith(APP_PREFIX) && it.value is Long }
+            .map { it.key.removePrefix(APP_PREFIX) to ((it.value as Long) / 60_000L).toInt() }
+            .filter { it.second > 0 }
+            .sortedByDescending { it.second }
+
+    /** يمنح رصيداً يدوياً — يُسجَّل في السجلّ كي يراه صاحبه */
+    fun grant(c: Context, minutes: Int) {
+        stopSpending(c)
+        Prefs.p(c).edit().putLong(BALANCE, (balance(c) + minutes * 60_000L).coerceAtLeast(0)).apply()
+    }
+
+    /** تصفير كامل: الرصيد والإجماليات وسجلّ التطبيقات */
+    fun resetAll(c: Context) {
+        val e = Prefs.p(c).edit()
+        Prefs.p(c).all.keys.filter { it.startsWith(APP_PREFIX) || it.startsWith("crDay_") }
+            .forEach { e.remove(it) }
+        e.putLong(BALANCE, 0L).putLong(SINCE, 0L).putString(PKG, "")
+            .putLong(EARNED, 0L).putLong(SPENT, 0L).apply()
     }
 
     /** أتمّ جولة تحدٍّ — يُضاف الرصيد */

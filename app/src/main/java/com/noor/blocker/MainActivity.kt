@@ -32,7 +32,7 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "7.0"
+private const val APP_VERSION = "8.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -50,6 +50,7 @@ class NoorBridge(
     fun prayerCompleted() {
         val lock = PrayerLock.current(ctx) ?: return
         Prefs.markPrayed(ctx, lock.key)
+        EventLog.add(ctx, EventLog.PRAYER, "صلّيتَ ${lock.prayerName} أمام الكاميرا")
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(ctx, "تقبّل الله منك — فُتح القفل 🤲", Toast.LENGTH_LONG).show()
         }
@@ -60,6 +61,8 @@ class NoorBridge(
     fun challengeCompleted() {
         val mins = Credit.award(ctx)
         val total = Credit.format(ctx)
+        EventLog.add(ctx, EventLog.EARN,
+            "أتممتَ ${ChallengeLock.reps(ctx)} ضغطة — كسبتَ $mins دقيقة (الرصيد $total)")
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(ctx, "أحسنت — كسبتَ $mins دقيقة · رصيدك $total", Toast.LENGTH_LONG).show()
         }
@@ -92,9 +95,12 @@ class MainActivity : Activity() {
     private lateinit var content: FrameLayout
     private lateinit var tabWeb: Button
     private lateinit var tabBlock: Button
+    private lateinit var tabAdmin: Button
 
     private var webView: WebView? = null
     private var blockerView: ScrollView? = null
+    private var adminPanel: AdminPanel? = null
+    private var adminView: ScrollView? = null
 
     private lateinit var statusView: TextView
     private lateinit var timesView: TextView
@@ -270,6 +276,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         ticker.removeCallbacks(tick)
+        adminPanel?.stopTicking()      // لا يعمل مؤقّت اللوحة والتطبيق في الخلف
     }
 
     /* ─────────── شريط الصلاة القادمة ─────────── */
@@ -315,21 +322,31 @@ class MainActivity : Activity() {
             text = "قفل الصلاة"
             setOnClickListener { showBlocker() }
         }
+        tabAdmin = Button(this).apply {
+            text = "لوحة التحكّم"
+            setOnClickListener { showAdmin() }
+        }
         bar.addView(tabWeb, lp)
         bar.addView(tabBlock, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        bar.addView(tabAdmin, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         return bar
     }
 
-    private fun markTabs(webActive: Boolean) {
-        tabWeb.setBackgroundColor(if (webActive) Color.parseColor("#D4AF37") else Color.parseColor("#0A3227"))
-        tabWeb.setTextColor(if (webActive) Color.parseColor("#16130A") else Color.WHITE)
-        tabBlock.setBackgroundColor(if (webActive) Color.parseColor("#0A3227") else Color.parseColor("#D4AF37"))
-        tabBlock.setTextColor(if (webActive) Color.WHITE else Color.parseColor("#16130A"))
+    /** 0 = الأذكار · 1 = قفل الصلاة · 2 = لوحة التحكّم */
+    private fun markTabs(which: Int) {
+        val on = Color.parseColor("#D4AF37"); val off = Color.parseColor("#0A3227")
+        val onT = Color.parseColor("#16130A"); val offT = Color.WHITE
+        listOf(tabWeb, tabBlock, tabAdmin).forEachIndexed { i, b ->
+            b.setBackgroundColor(if (i == which) on else off)
+            b.setTextColor(if (i == which) onT else offT)
+            b.textSize = 13f
+        }
     }
 
     /* ─────────── تبويب الأذكار والقرآن ─────────── */
     private fun showWeb() {
-        markTabs(true)
+        markTabs(0)
+        adminPanel?.stopTicking()
         content.removeAllViews()
 
         if (webView == null) {
@@ -408,11 +425,25 @@ class MainActivity : Activity() {
 
     /* ─────────── تبويب قفل الصلاة ─────────── */
     private fun showBlocker() {
-        markTabs(false)
+        markTabs(1)
+        adminPanel?.stopTicking()
         content.removeAllViews()
         if (blockerView == null) blockerView = buildBlockerUi()
         content.addView(blockerView)
         refreshStatus()
+    }
+
+    /* ─────────── تبويب لوحة التحكّم ─────────── */
+    private fun showAdmin() {
+        markTabs(2)
+        content.removeAllViews()
+        if (adminPanel == null) {
+            adminPanel = AdminPanel(this)
+            adminView = adminPanel!!.build()
+        }
+        adminPanel?.renderAll()
+        adminPanel?.startTicking()
+        content.addView(adminView)
     }
 
     private fun header(text: String) = TextView(this).apply {

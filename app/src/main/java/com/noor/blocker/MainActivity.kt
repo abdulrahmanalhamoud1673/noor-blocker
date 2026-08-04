@@ -537,14 +537,9 @@ class MainActivity : Activity() {
 
         /* نظام النقاط */
         col.addView(header("٥) نظام النقاط — اكسب وقتك"))
-        col.addView(body(
-            "الضغطات مع الذكر تشتري لك دقائق استخدام.
-" +
-            "والدقائق لا تُصرف إلا وأنت داخل التطبيقات المحظورة: تخرج " +
-            "من إنستغرام فيتوقّف العدّاد ويبقى رصيدك كما هو، وتعود فيُستأنف.
-" +
-            "ينفد الرصيد فتُقفل حتى تكسب غيره."
-        ))
+        col.addView(body("الضغطات مع الذكر تشتري لك دقائق استخدام."))
+        col.addView(body("والدقائق لا تُصرف إلا وأنت داخل التطبيقات المحظورة: تخرج من إنستغرام فيتوقّف العدّاد ويبقى رصيدك كما هو، وتعود فيُستأنف."))
+        col.addView(body("ينفد الرصيد فتُقفل حتى تكسب غيره."))
 
         val chState = body("")
         col.addView(CheckBox(this).apply {
@@ -801,13 +796,11 @@ class MainActivity : Activity() {
         }
         val reward = "الجولة: ${ChallengeLock.reps(this)} ضغطة = ${Credit.rewardMinutes(this)} دقيقة"
         if (Credit.isEmpty(this)) {
-            v.text = "🔒 رصيدك صفر — أتمّ جولة لتكسب
-$reward"
+            v.text = "🔒 رصيدك صفر — أتمّ جولة لتكسب\n$reward"
             v.setTextColor(Color.parseColor("#EF4444"))
         } else {
             val flow = if (Credit.isSpending(this)) "⏳ يُصرف الآن" else "⏸ متوقّف — لست في تطبيق محظور"
-            v.text = "💎 رصيدك ${Credit.format(this)}  ·  $flow
-$reward"
+            v.text = "💎 رصيدك ${Credit.format(this)}  ·  $flow\n$reward"
             v.setTextColor(Color.parseColor("#10B981"))
         }
     }

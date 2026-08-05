@@ -54,6 +54,19 @@
             android:taskAffinity="com.noor.blocker.lock"
             android:theme="@style/LockTheme" />
 
+        <!-- مدير الجهاز: صلاحية قفل الشاشة وحدها، لطلبها من المستخدم -->
+        <receiver
+            android:name=".NoorDeviceAdmin"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name=".AdhanReceiver"
             android:exported="false" />

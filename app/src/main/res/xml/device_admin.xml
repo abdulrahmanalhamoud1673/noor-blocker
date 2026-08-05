@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  الصلاحية الوحيدة المطلوبة: force-lock (قفل الشاشة).
+  لا نطلب مسح الجهاز ولا تغيير كلمة السر ولا مراقبة المحاولات —
+  صلاحيات مدير الجهاز خطيرة، فلا نأخذ منها إلا ما يلزم فعلاً.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <force-lock />
+    </uses-policies>
+</device-admin>

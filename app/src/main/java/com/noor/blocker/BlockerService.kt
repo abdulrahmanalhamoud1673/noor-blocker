@@ -141,6 +141,11 @@ class BlockerService : AccessibilityService() {
             Credit.stopSpending(this)      // لا يُصرف رصيدك أثناء قفل الصلاة
             stopWatching()
             showLock()
+            // وإن كانت صلاحية مدير الجهاز ممنوحة، نُطفئ الشاشة أيضاً:
+            // فتحُ الهاتف لا يوصلك إلى شيء، بل يعيدك إلى شاشة القفل.
+            handler.postDelayed({
+                if (PrayerLock.current(this) != null) ScreenLock.lockNow(this)
+            }, 2500)
             return
         }
 

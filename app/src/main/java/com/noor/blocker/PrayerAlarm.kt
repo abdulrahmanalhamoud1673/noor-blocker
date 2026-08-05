@@ -167,6 +167,11 @@ class AdhanReceiver : BroadcastReceiver() {
                             Intent.FLAG_ACTIVITY_NO_ANIMATION
                         )
                     })
+                    // ثم نُطفئ الشاشة فعلياً: إن كان الهاتف بيده أُقفل،
+                    // وإن كان مغلقاً بقي مغلقاً. نمهله ثوانيَ ليقرأ السبب.
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        if (PrayerLock.current(ctx) != null) ScreenLock.lockNow(ctx)
+                    }, 6000)
                 }
             }, 1500)
         }

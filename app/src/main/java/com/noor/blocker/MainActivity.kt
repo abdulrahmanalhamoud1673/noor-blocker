@@ -32,7 +32,7 @@ import android.widget.Toast
 private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "8.0"
+private const val APP_VERSION = "9.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -550,6 +550,45 @@ class MainActivity : Activity() {
             "الرئيسية — ولا يوجد زرّ لفكّه. يُفتح وحده عند انتهاء المدة.\n" +
             "الاتصال والطوارئ والإعدادات تبقى متاحة دائماً."
         ))
+        /* قفل الشاشة القسريّ */
+        val lockState = body("")
+        fun paintLockState() {
+            if (ScreenLock.isAdmin(this)) {
+                lockState.text = "✅ مفعّل — سيُقفل هاتفك تلقائياً عند الأذان"
+                lockState.setTextColor(Color.parseColor("#10B981"))
+            } else {
+                lockState.text = "❌ غير مفعّل — سيُمنع الاستخدام لكن الشاشة لن تُقفل"
+                lockState.setTextColor(Color.parseColor("#EF4444"))
+            }
+        }
+        col.addView(body("اقفل الشاشة نفسها عند الأذان، لا مجرّد منع التطبيقات."))
+        col.addView(lockState)
+        paintLockState()
+        col.addView(Button(this).apply {
+            text = "🔒 فعّل قفل الشاشة القسريّ"
+            setOnClickListener {
+                if (ScreenLock.isAdmin(this@MainActivity)) {
+                    android.app.AlertDialog.Builder(this@MainActivity)
+                        .setTitle("إلغاء قفل الشاشة")
+                        .setMessage("سيتوقّف إطفاء الشاشة تلقائياً عند الأذان. أمتأكّد؟")
+                        .setPositiveButton("ألغِ") { _, _ ->
+                            ScreenLock.revoke(this@MainActivity); paintLockState()
+                        }
+                        .setNegativeButton("رجوع", null).show()
+                } else {
+                    startActivity(ScreenLock.requestIntent(this@MainActivity))
+                }
+            }
+        })
+        col.addView(body(
+            "ملاحظة صريحة: لا يستطيع أي تطبيق أن يمنعك من إدخال رمز قفل هاتفك — " +
+            "شاشة القفل ملك النظام. لكن حين تُدخل الرمز تجد شاشة نور فوق كل شيء، " +
+            "وأي محاولة استخدام تُعيد إطفاء الشاشة. ومكالمات الطوارئ تبقى متاحة."
+        ))
+        col.addView(body(
+            "قبل حذف التطبيق: ألغِ هذه الصلاحية من هنا أولاً، وإلا منعك النظام من حذفه."
+        ))
+
         val durLabel = body("${Prefs.lockMinutes(this)} دقيقة")
         col.addView(durLabel)
         col.addView(android.widget.SeekBar(this).apply {

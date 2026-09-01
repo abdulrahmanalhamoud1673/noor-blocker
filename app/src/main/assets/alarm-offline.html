@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منبّه نور</title>
+<!--
+  صفحة الطوارئ.
+
+  إن لم تُحمَّل صفحة نور (لا إنترنت في الرابعة فجراً) بقي المنبّه
+  يصرخ أمام شاشة بيضاء بلا مخرج. هذه الصفحة مخزّنة داخل التطبيق
+  نفسه فتعمل دائماً: تطلب كتابة رموز عشوائية — يبقى القيام مطلوباً
+  ولا يبقى الهاتف أسيراً.
+-->
+<style>
+  :root{ --bg:#04150F; --card:#0B241A; --line:rgba(212,175,55,.22);
+         --gold:#D4AF37; --text:#EAF5F0; --muted:#6E8F82; }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);
+       font-family:"Segoe UI",Tahoma,sans-serif;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;padding:22px;gap:16px;text-align:center}
+  h1{font-size:20px;margin:0;font-weight:800}
+  p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.7}
+  .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);
+        border-radius:18px;padding:20px 16px}
+  .code{font-family:"Courier New",monospace;font-size:2.7rem;font-weight:800;
+        letter-spacing:.34em;text-indent:.34em;color:var(--gold);margin:6px 0 2px;
+        user-select:none;-webkit-user-select:none}
+  .dots{display:flex;gap:9px;justify-content:center;margin:12px 0 4px}
+  .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16)}
+  .dot.on{background:#10B981}
+  input{width:100%;padding:16px;margin:14px 0 12px;border-radius:14px;
+        border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--text);
+        font-size:1.5rem;font-weight:700;text-align:center;letter-spacing:.22em;
+        font-family:"Courier New",monospace}
+  input:focus{outline:none;border-color:var(--gold)}
+  button{width:100%;padding:15px;border:none;border-radius:14px;background:var(--gold);
+         color:#16130A;font-size:17px;font-weight:800;font-family:inherit}
+  .why{color:var(--muted);font-size:13.5px;margin-top:10px;line-height:1.7}
+  .ok{color:#10B981}
+</style>
+</head>
+<body>
+
+<h1>⏰ حان وقت الفجر</h1>
+<p>تعذّر الاتصال بالإنترنت، فلا تصوير الليلة.<br>اكتب الرموز كي يسكت المنبّه.</p>
+
+<div class="card">
+  <div class="code" id="code">—</div>
+  <div class="dots" id="dots"></div>
+  <input id="inp" autocomplete="off" autocorrect="off" autocapitalize="characters"
+         spellcheck="false" placeholder="اكتب هنا…">
+  <button id="ok">تحقّق</button>
+  <div class="why" id="why">الصلاة خير من النوم.</div>
+</div>
+
+<script>
+  var CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // بلا O و0 و I و1
+  var NEED = 3, done = 0, code = "";
+
+  function newCode() {
+    var s = "";
+    for (var i = 0; i < 6; i++) s += CHARS[Math.floor(Math.random() * CHARS.length)];
+    return s;
+  }
+  function paint() {
+    document.getElementById("code").textContent = code;
+    var d = document.getElementById("dots");
+    d.innerHTML = "";
+    for (var i = 0; i < NEED; i++) {
+      var e = document.createElement("div");
+      e.className = "dot" + (i < done ? " on" : "");
+      d.appendChild(e);
+    }
+  }
+  function next() { code = newCode(); paint(); var i = document.getElementById("inp"); i.value = ""; i.focus(); }
+
+  function check() {
+    var inp = document.getElementById("inp");
+    var v = (inp.value || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (v !== code) {
+      document.getElementById("why").textContent = "الرمز غير مطابق — انظر جيّداً واكتبه كما هو.";
+      inp.value = ""; inp.focus();
+      try { navigator.vibrate && navigator.vibrate(200); } catch (e) {}
+      return;
+    }
+    done++;
+    try { navigator.vibrate && navigator.vibrate([40, 60, 40]); } catch (e) {}
+    if (done >= NEED) {
+      paint();
+      document.getElementById("why").className = "why ok";
+      document.getElementById("why").textContent = "قمتَ — تقبّل الله 🌅";
+      try { if (window.NoorApp && NoorApp.alarmSolved) NoorApp.alarmSolved(); } catch (e) {}
+      return;
+    }
+    document.getElementById("why").textContent = "أحسنت — بقي " + (NEED - done) + ".";
+    next();
+  }
+
+  document.getElementById("ok").addEventListener("click", check);
+  document.getElementById("inp").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") check();
+  });
+  next();
+</script>
+</body>
+</html>

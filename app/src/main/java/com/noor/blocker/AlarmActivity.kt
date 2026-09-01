@@ -22,6 +22,9 @@ import android.widget.Toast
 /** صفحة الويب في وضع المنبّه */
 private val NOOR_WEB_ALARM = NOOR_WEB + "#alarm=1"
 
+/** صفحة الطوارئ داخل التطبيق — تعمل بلا إنترنت */
+private const val ALARM_OFFLINE = "file:///android_asset/alarm-offline.html"
+
 /**
  * شاشة مهمّات المنبّه.
  *
@@ -38,6 +41,7 @@ class AlarmActivity : Activity() {
     private var wake: PowerManager.WakeLock? = null
     private var web: WebView? = null
     private var solved = false
+    private var offline = false
     private val handler = Handler(Looper.getMainLooper())
 
     inner class AlarmBridge {
@@ -84,7 +88,26 @@ class AlarmActivity : Activity() {
                 mediaPlaybackRequiresUserGesture = false
                 cacheMode = WebSettings.LOAD_DEFAULT
             }
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                /**
+                 * لا إنترنت في الرابعة فجراً؟ منبّه يصرخ أمام صفحة
+                 * فارغة لا مخرج منه — فننتقل إلى صفحة مخزّنة داخل
+                 * التطبيق تطلب كتابة رموز. القيام يبقى مطلوباً.
+                 */
+                override fun onReceivedError(
+                    view: WebView?, request: android.webkit.WebResourceRequest?,
+                    error: android.webkit.WebResourceError?
+                ) {
+                    if (request?.isForMainFrame == true) fallback()
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onReceivedError(
+                    view: WebView?, errorCode: Int, description: String?, failingUrl: String?
+                ) {
+                    if (failingUrl != null && failingUrl.startsWith("http")) fallback()
+                }
+            }
             webChromeClient = object : WebChromeClient() {
                 override fun onPermissionRequest(request: PermissionRequest?) {
                     if (request == null) return
@@ -111,6 +134,20 @@ class AlarmActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         ))
         setContentView(root)
+
+        // شبكة بطيئة جداً لا ترمي خطأ: ننتظر عشر ثوانٍ ثمّ نتحوّل
+        handler.postDelayed({
+            val loaded = web?.url?.startsWith("http") == true && (web?.progress ?: 0) >= 100
+            if (!loaded) fallback()
+        }, 10000)
+    }
+
+    /** ينتقل إلى صفحة الطوارئ مرّة واحدة لا أكثر */
+    private fun fallback() {
+        if (offline || solved) return
+        offline = true
+        EventLog.add(this, EventLog.ADHAN, "تعذّر تحميل الصفحة — تحدّي الكتابة")
+        web?.loadUrl(ALARM_OFFLINE)
     }
 
     /** الخروج لا يُسكت المنبّه — نعيد الشاشة ما دام يرنّ */

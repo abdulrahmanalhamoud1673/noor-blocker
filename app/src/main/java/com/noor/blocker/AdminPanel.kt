@@ -190,6 +190,13 @@ class AdminPanel(private val act: Activity) {
             if (Prefs.adhanSound(act)) "بصوت مؤذّن" else "نغمة قصيرة"))
         sb.append(String.format("%n📵 تطبيقات محظورة: %d", Prefs.blockedApps(act).size))
 
+        sb.append(String.format("%n⏰ منبّه المهمّات: %s", when {
+            MissionRinger.ringing -> "يرنّ الآن"
+            !MissionAlarm.enabled(act) -> "مطفأ"
+            else -> java.text.SimpleDateFormat("EEEE h:mm a", java.util.Locale("ar", "JO"))
+                .format(java.util.Date(MissionAlarm.nextAt(act)))
+        }))
+
         statusBox.text = sb.toString()
     }
 

@@ -29,10 +29,10 @@ import android.widget.TextView
 import android.widget.Toast
 
 /** رابط تطبيق الأذكار والقرآن */
-private const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
+const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "9.0"
+private const val APP_VERSION = "10.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -699,8 +699,92 @@ class MainActivity : Activity() {
 
         renderChallengeState(chState)
 
+        /* منبّه الفجر بالمهمّات */
+        col.addView(header("٦) منبّه الفجر بالمهمّات"))
+        col.addView(body(
+            "منبّه لا يسكت بضغطة. يطلب منك تصوير أشياء في بيتك يختارها عشوائياً " +
+            "— حنفية الحمّام، الميكروويف — فلا سبيل إلى إسكاته إلا أن تقوم وتمشي إليها.\n" +
+            "تختار الأهداف وعدد المهمّات من صفحة «منبّه المهمّات» في التطبيق."
+        ))
+
+        val almState = body("")
+        fun paintAlarm() {
+            if (!MissionAlarm.enabled(this)) {
+                almState.text = "مطفأ"
+                almState.setTextColor(Color.parseColor("#6E8F82"))
+            } else {
+                val at = MissionAlarm.nextAt(this)
+                val fmt = java.text.SimpleDateFormat("EEEE h:mm a", java.util.Locale("ar", "JO"))
+                almState.text = "⏰ الرنين القادم: " + fmt.format(java.util.Date(at))
+                almState.setTextColor(Color.parseColor("#D4AF37"))
+            }
+        }
+
+        col.addView(CheckBox(this).apply {
+            text = "فعّل منبّه الفجر"
+            textSize = 15.5f
+            setTextColor(Color.parseColor("#EAF5F0"))
+            isChecked = MissionAlarm.enabled(this@MainActivity)
+            setOnCheckedChangeListener { _, checked ->
+                MissionAlarm.setEnabled(this@MainActivity, checked)
+                paintAlarm()
+            }
+        })
+        col.addView(almState)
+
+        col.addView(body("متى يرنّ بالنسبة للفجر؟"))
+        val offLabel = body("")
+        fun paintOff() {
+            val m = MissionAlarm.offsetMin(this)
+            offLabel.text = when {
+                m == 0 -> "مع الأذان تماماً"
+                m < 0 -> "قبل الأذان بـ " + (-m) + " دقيقة"
+                else -> "بعد الأذان بـ " + m + " دقيقة"
+            }
+        }
+        paintOff()
+        col.addView(offLabel)
+        col.addView(android.widget.SeekBar(this).apply {
+            max = 60                                  // من ٣٠- إلى ٣٠+
+            progress = MissionAlarm.offsetMin(this@MainActivity) + 30
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
+                    if (!u) return
+                    MissionAlarm.setOffsetMin(this@MainActivity, p - 30)
+                    paintOff(); paintAlarm()
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+            })
+        })
+
+        paintAlarm()
+
+        col.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(Button(this@MainActivity).apply {
+                text = "⏰ جرّب المنبّه الآن"
+                setOnClickListener {
+                    MissionRinger.start(this@MainActivity)
+                    startActivity(Intent(this@MainActivity, AlarmActivity::class.java))
+                }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(Button(this@MainActivity).apply {
+                text = "■ أوقف"
+                setOnClickListener { MissionRinger.stop(this@MainActivity) }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+        })
+
+        col.addView(body(
+            "لو انقطع الإنترنت أو تعطّلت الكاميرا، يتحوّل المنبّه إلى تحدّي كتابة رموز " +
+            "يعمل بلا إنترنت — فلا يبقى هاتفك أسيراً أبداً.\n" +
+            "وللاحتياط يسكت الصوت وحده بعد ٣٠ دقيقة."
+        ))
+
         /* اختيار التطبيقات */
-        col.addView(header("٦) تطبيقات تحدّي الاستغفار"))
+        col.addView(header("٧) تطبيقات تحدّي الاستغفار"))
         col.addView(body(
             "هذه القائمة لتحدّي الاستغفار وحده.\n" +
             "قفل الصلاة لم يعد يعتمد عليها — فهو يقفل الهاتف كلّه."

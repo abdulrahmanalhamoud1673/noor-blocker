@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "10.1"
+private const val APP_VERSION = "10.2"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11

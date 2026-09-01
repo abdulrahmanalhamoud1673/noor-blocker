@@ -9,62 +9,58 @@
 
   إن لم تُحمَّل صفحة نور (لا إنترنت في الرابعة فجراً) بقي المنبّه
   يصرخ أمام شاشة بيضاء بلا مخرج. هذه الصفحة مخزّنة داخل التطبيق
-  نفسه فتعمل دائماً: تطلب كتابة رموز عشوائية — يبقى القيام مطلوباً
-  ولا يبقى الهاتف أسيراً.
+  نفسه فتعمل دائماً.
+
+  ولا رموز فيها: الطلب هو التصوير كما وعدناه. لا نملك نموذجاً
+  يحكم بلا إنترنت، لكن الهاتف يرى بنفسه أن المشهد تغيّر — فنطلب
+  ثلاثة أماكن مختلفة فعلاً. ولا يتغيّر المشهد وأنت في فراشك.
 -->
 <style>
   :root{ --bg:#04150F; --card:#0B241A; --line:rgba(212,175,55,.22);
          --gold:#D4AF37; --text:#EAF5F0; --muted:#6E8F82; }
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);
-       font-family:"Segoe UI",Tahoma,sans-serif;display:flex;flex-direction:column;
-       align-items:center;justify-content:center;padding:22px;gap:16px;text-align:center}
-  h1{font-size:20px;margin:0;font-weight:800}
-  p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.7}
-  .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);
-        border-radius:18px;padding:20px 16px}
-  .code{font-family:"Courier New",monospace;font-size:2.7rem;font-weight:800;
-        letter-spacing:.34em;text-indent:.34em;color:var(--gold);margin:6px 0 2px;
-        user-select:none;-webkit-user-select:none}
-  .dots{display:flex;gap:9px;justify-content:center;margin:12px 0 4px}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:"Segoe UI",Tahoma,sans-serif;display:flex;flex-direction:column}
+  header{padding:10px 14px 12px;text-align:center;border-bottom:1px solid var(--line)}
+  h1{font-size:15px;margin:0 0 2px;font-weight:700;color:var(--gold)}
+  .task{font-size:25px;font-weight:800;margin:0}
+  .dots{display:flex;gap:9px;justify-content:center;margin-top:7px}
   .dot{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16)}
   .dot.on{background:#10B981}
-  input{width:100%;padding:16px;margin:14px 0 12px;border-radius:14px;
-        border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--text);
-        font-size:1.5rem;font-weight:700;text-align:center;letter-spacing:.22em;
-        font-family:"Courier New",monospace}
-  input:focus{outline:none;border-color:var(--gold)}
-  button{width:100%;padding:15px;border:none;border-radius:14px;background:var(--gold);
+  .cam{position:relative;flex:1;min-height:0;background:#000;overflow:hidden}
+  video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .hint{position:absolute;left:0;right:0;bottom:0;padding:14px 12px 10px;text-align:center;
+        font-size:14px;font-weight:700;color:var(--gold);
+        background:linear-gradient(0deg,rgba(0,0,0,.85),transparent)}
+  button{margin:10px 12px;padding:15px;border:none;border-radius:14px;background:var(--gold);
          color:#16130A;font-size:17px;font-weight:800;font-family:inherit}
-  .why{color:var(--muted);font-size:13.5px;margin-top:10px;line-height:1.7}
   .ok{color:#10B981}
 </style>
 </head>
 <body>
 
-<h1>⏰ حان وقت الفجر</h1>
-<p>تعذّر الاتصال بالإنترنت، فلا تصوير الليلة.<br>اكتب الرموز كي يسكت المنبّه.</p>
-
-<div class="card">
-  <div class="code" id="code">—</div>
+<header>
+  <h1>حان وقت الفجر — لا إنترنت الآن</h1>
+  <p class="task" id="task">صوّر مكاناً في البيت</p>
   <div class="dots" id="dots"></div>
-  <input id="inp" autocomplete="off" autocorrect="off" autocapitalize="characters"
-         spellcheck="false" placeholder="اكتب هنا…">
-  <button id="ok">تحقّق</button>
-  <div class="why" id="why">الصلاة خير من النوم.</div>
+</header>
+
+<div class="cam">
+  <video id="v" playsinline autoplay muted></video>
+  <div class="hint" id="hint">جارٍ فتح الكاميرا…</div>
 </div>
 
-<script>
-  var CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // بلا O و0 و I و1
-  var NEED = 3, done = 0, code = "";
+<button id="shoot">📸 صوّر هنا</button>
 
-  function newCode() {
-    var s = "";
-    for (var i = 0; i < 6; i++) s += CHARS[Math.floor(Math.random() * CHARS.length)];
-    return s;
-  }
+<script>
+  var NEED = 3, done = 0;
+  var MOVED = 26;          // فرق يكفي للقول: هذا مكان آخر
+  var home = null, oks = [], ctx = null, ready = false;
+
   function paint() {
-    document.getElementById("code").textContent = code;
+    document.getElementById("task").textContent =
+      done >= NEED ? "قمتَ — تقبّل الله 🌅" : "صوّر مكاناً مختلفاً (" + (done + 1) + ")";
     var d = document.getElementById("dots");
     d.innerHTML = "";
     for (var i = 0; i < NEED; i++) {
@@ -73,35 +69,84 @@
       d.appendChild(e);
     }
   }
-  function next() { code = newCode(); paint(); var i = document.getElementById("inp"); i.value = ""; i.focus(); }
+  function say(t) { document.getElementById("hint").textContent = t; }
 
-  function check() {
-    var inp = document.getElementById("inp");
-    var v = (inp.value || "").trim().toUpperCase().replace(/\s+/g, "");
-    if (v !== code) {
-      document.getElementById("why").textContent = "الرمز غير مطابق — انظر جيّداً واكتبه كما هو.";
-      inp.value = ""; inp.focus();
-      try { navigator.vibrate && navigator.vibrate(200); } catch (e) {}
-      return;
+  /** مصغّرة ملوّنة ٣٢×٢٤ — غرفتان بنفس الإضاءة تختلفان في اللون */
+  function thumb() {
+    var v = document.getElementById("v");
+    if (!v.videoWidth) return null;
+    if (!ctx) {
+      var c = document.createElement("canvas");
+      c.width = 32; c.height = 24;
+      ctx = c.getContext("2d", { willReadFrequently: true });
     }
+    ctx.drawImage(v, 0, 0, 32, 24);
+    var d = ctx.getImageData(0, 0, 32, 24).data;
+    var g = new Uint8Array(32 * 24 * 3);
+    for (var i = 0, j = 0; i < d.length; i += 4, j += 3) {
+      g[j] = d[i]; g[j + 1] = d[i + 1]; g[j + 2] = d[i + 2];
+    }
+    return g;
+  }
+  function diff(a, b) {
+    if (!a || !b) return 255;
+    var s = 0;
+    for (var i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+    return s / a.length;
+  }
+
+  function judge() {
+    if (!ready) { say("انتظر الكاميرا…"); return; }
+    var cur = thumb();
+    if (!cur) { say("لا صورة بعد…"); return; }
+    if (!home) { home = cur; say("سُجّل مكانك — امشِ إلى غرفة أخرى"); return; }
+
+    if (diff(home, cur) < MOVED) { say("هذا نفس المكان — امشِ إلى غرفة أخرى"); return; }
+    for (var i = 0; i < oks.length; i++) {
+      if (diff(oks[i], cur) < MOVED) { say("صوّرتَ هذا المكان — اذهب إلى غيره"); return; }
+    }
+
+    oks.push(cur);
     done++;
     try { navigator.vibrate && navigator.vibrate([40, 60, 40]); } catch (e) {}
+    paint();
     if (done >= NEED) {
-      paint();
-      document.getElementById("why").className = "why ok";
-      document.getElementById("why").textContent = "قمتَ — تقبّل الله 🌅";
+      say("سكت المنبّه — الصلاة خير من النوم");
+      document.getElementById("hint").className = "hint ok";
+      document.getElementById("shoot").style.display = "none";
       try { if (window.NoorApp && NoorApp.alarmSolved) NoorApp.alarmSolved(); } catch (e) {}
       return;
     }
-    document.getElementById("why").textContent = "أحسنت — بقي " + (NEED - done) + ".";
-    next();
+    say("✓ مكان جديد — بقي " + (NEED - done));
   }
 
-  document.getElementById("ok").addEventListener("click", check);
-  document.getElementById("inp").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") check();
-  });
-  next();
+  async function start() {
+    paint();
+    try {
+      var s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } }, audio: false
+      });
+      var v = document.getElementById("v");
+      v.srcObject = s;
+      await v.play().catch(function () {});
+      setTimeout(function () {
+        ready = true;
+        home = thumb();
+        say("وجّه الكاميرا وامشِ إلى غرفة أخرى ثم صوّر");
+      }, 900);
+    } catch (e) {
+      // الكاميرا معطّلة أيضاً: لا نحبس الهاتف
+      say("تعذّر فتح الكاميرا");
+      var b = document.getElementById("shoot");
+      b.textContent = "أوقِف المنبّه";
+      b.onclick = function () {
+        try { if (window.NoorApp && NoorApp.alarmSolved) NoorApp.alarmSolved(); } catch (x) {}
+      };
+      return;
+    }
+    document.getElementById("shoot").addEventListener("click", judge);
+  }
+  start();
 </script>
 </body>
 </html>

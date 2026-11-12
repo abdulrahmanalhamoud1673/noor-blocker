@@ -120,7 +120,7 @@ class AlarmActivity : Activity() {
                         request.deny()
                         Toast.makeText(
                             this@AlarmActivity,
-                            "الكاميرا غير مسموحة — استخدم تحدّي الكتابة",
+                            "الكاميرا غير مسموحة — افتح نور وامنح الإذن",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -146,7 +146,7 @@ class AlarmActivity : Activity() {
     private fun fallback() {
         if (offline || solved) return
         offline = true
-        EventLog.add(this, EventLog.ADHAN, "تعذّر تحميل الصفحة — تحدّي الكتابة")
+        EventLog.add(this, EventLog.ADHAN, "تعذّر تحميل الصفحة — تصوير أماكن مختلفة")
         web?.loadUrl(ALARM_OFFLINE)
     }
 

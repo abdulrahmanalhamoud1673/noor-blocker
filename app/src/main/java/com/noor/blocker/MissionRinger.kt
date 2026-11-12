@@ -67,7 +67,7 @@ class MissionRinger : Service() {
                 NotificationChannel(
                     CHANNEL_ID, "منبّه المهمّات", NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "منبّه الفجر الذي لا يسكت إلا بإتمام المهمّات"
+                    description = "منبّه لا يسكت إلا بإتمام المهمّات"
                     setSound(null, null)          // الصوت من المشغّل لا من الإشعار
                     enableVibration(false)        // الاهتزاز من الخدمة كي يستمر
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
@@ -173,7 +173,7 @@ class MissionRinger : Service() {
             Notification.Builder(this, CHANNEL_ID) else Notification.Builder(this)
 
         return b.setSmallIcon(R.drawable.ic_launcher_noor)
-            .setContentTitle("حان وقت الفجر — قُم")
+            .setContentTitle("حان وقت المنبّه — قُم")
             .setContentText("لن يسكت حتى تُتمّ المهمّات")
             .setContentIntent(screen)
             .setFullScreenIntent(screen, true)

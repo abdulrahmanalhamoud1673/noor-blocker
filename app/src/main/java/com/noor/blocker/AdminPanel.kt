@@ -192,9 +192,9 @@ class AdminPanel(private val act: Activity) {
 
         sb.append(String.format("%n⏰ منبّه المهمّات: %s", when {
             MissionRinger.ringing -> "يرنّ الآن"
-            !MissionAlarm.enabled(act) -> "مطفأ"
+            !MissionAlarm.anyOn(act) -> "مطفأ"
             else -> java.text.SimpleDateFormat("EEEE h:mm a", java.util.Locale("ar", "JO"))
-                .format(java.util.Date(MissionAlarm.nextAt(act)))
+                .format(java.util.Date(MissionAlarm.nextAny(act)))
         }))
 
         statusBox.text = sb.toString()

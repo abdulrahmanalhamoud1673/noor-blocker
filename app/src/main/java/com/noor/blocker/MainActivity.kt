@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "10.2"
+private const val APP_VERSION = "11.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -446,6 +446,126 @@ class MainActivity : Activity() {
         content.addView(adminView)
     }
 
+    /* ─────────── قائمة المنبّهات ─────────── */
+
+    private lateinit var almBox: LinearLayout
+
+    /** يسأل عن الساعة ثم يضيف المنبّه ويُظهره في القائمة */
+    private fun addAlarmDialog() {
+        val now = java.util.Calendar.getInstance()
+        android.app.TimePickerDialog(this, { _, h, m ->
+            MissionAlarm.add(this, h, m, 0)
+            renderAlarms()
+            Toast.makeText(this, "أُضيف المنبّه — اختر أيّامه من تحته", Toast.LENGTH_LONG).show()
+        }, now.get(java.util.Calendar.HOUR_OF_DAY), 0, false).show()
+    }
+
+    /**
+     * يرسم القائمة من جديد.
+     *
+     * ولماذا من جديد لا تعديلاً موضعياً؟ لأن الصفوف قليلة (منبّهات
+     * معدودة)، فإعادة الرسم أوضح من تتبّع أي صفّ تغيّر.
+     */
+    private fun renderAlarms() {
+        if (!::almBox.isInitialized) return
+        almBox.removeAllViews()
+
+        val list = MissionAlarm.all(this)
+        if (list.isEmpty()) {
+            almBox.addView(body("لا منبّهات بعد — اضغط «أضف منبّه» واختر الساعة."))
+            return
+        }
+
+        list.forEach { item -> almBox.addView(alarmRow(item)) }
+    }
+
+    /** صفّ منبّه واحد: الوقت، مفتاح التشغيل، الحذف، ثم أيام الأسبوع */
+    private fun alarmRow(item: MissionAlarm.Item): LinearLayout {
+        val dim = if (item.on) 1f else 0.45f
+
+        val time = TextView(this).apply {
+            text = item.timeText()
+            textSize = 30f
+            setTextColor(Color.parseColor("#EAF5F0"))
+            alpha = dim
+            setOnClickListener {
+                android.app.TimePickerDialog(this@MainActivity, { _, h, m ->
+                    MissionAlarm.setTime(this@MainActivity, item.id, h, m)
+                    renderAlarms()
+                }, item.h, item.m, false).show()
+            }
+        }
+        val days = TextView(this).apply {
+            text = item.daysText()
+            textSize = 13f
+            setTextColor(Color.parseColor("#9DBDB0"))
+            alpha = dim
+        }
+        val sw = CheckBox(this).apply {
+            isChecked = item.on
+            setOnCheckedChangeListener { _, on ->
+                MissionAlarm.setOn(this@MainActivity, item.id, on)
+                renderAlarms()
+            }
+        }
+        val del = Button(this).apply {
+            text = "🗑"
+            setOnClickListener {
+                MissionAlarm.remove(this@MainActivity, item.id)
+                renderAlarms()
+            }
+        }
+
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(time)
+                addView(days)
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(sw)
+            addView(del)
+        }
+
+        /* أيام الأسبوع: ح ن ث ر خ ج س */
+        val dayRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            alpha = dim
+        }
+        for (d in 0..6) {
+            val onDay = (item.days shr d) and 1 == 1
+            dayRow.addView(Button(this).apply {
+                text = MissionAlarm.DAY_NAMES[d]
+                textSize = 13f
+                setPadding(0, 0, 0, 0)
+                minWidth = 0
+                minimumWidth = 0
+                setBackgroundColor(Color.parseColor(if (onDay) "#D4AF37" else "#0A3227"))
+                setTextColor(Color.parseColor(if (onDay) "#16130A" else "#9DBDB0"))
+                setOnClickListener {
+                    MissionAlarm.setDays(this@MainActivity, item.id, item.days xor (1 shl d))
+                    renderAlarms()
+                }
+                layoutParams = LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+                    marginStart = dp(2); marginEnd = dp(2)
+                }
+            })
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setBackgroundColor(Color.parseColor("#0A3227"))
+            addView(top)
+            addView(dayRow)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(8) }
+        }
+    }
+
     private fun header(text: String) = TextView(this).apply {
         this.text = text
         textSize = 17f
@@ -699,66 +819,28 @@ class MainActivity : Activity() {
 
         renderChallengeState(chState)
 
-        /* منبّه الفجر بالمهمّات */
-        col.addView(header("٦) منبّه الفجر بالمهمّات"))
+        /* منبّه المهمّات */
+        col.addView(header("٦) منبّه المهمّات"))
         col.addView(body(
-            "منبّه لا يسكت بضغطة. يطلب منك تصوير أشياء في بيتك يختارها عشوائياً " +
-            "— حنفية الحمّام، الميكروويف — فلا سبيل إلى إسكاته إلا أن تقوم وتمشي إليها.\n" +
-            "تختار الأهداف وعدد المهمّات من صفحة «منبّه المهمّات» في التطبيق."
+            "منبّه عاديّ بكل شيء إلا طريقة إسكاته: تضبط الساعة بيدك، وحين يرنّ " +
+            "لا يوجد زرّ إيقاف — يطلب منك تصوير أشياء في بيتك واحداً بعد واحد.\n" +
+            "تختار ما تُصوّره وعددَه من صفحة «منبّه المهمّات» في التطبيق."
         ))
 
-        val almState = body("")
-        fun paintAlarm() {
-            if (!MissionAlarm.enabled(this)) {
-                almState.text = "مطفأ"
-                almState.setTextColor(Color.parseColor("#6E8F82"))
-            } else {
-                val at = MissionAlarm.nextAt(this)
-                val fmt = java.text.SimpleDateFormat("EEEE h:mm a", java.util.Locale("ar", "JO"))
-                almState.text = "⏰ الرنين القادم: " + fmt.format(java.util.Date(at))
-                almState.setTextColor(Color.parseColor("#D4AF37"))
-            }
-        }
+        almBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(almBox)
+        renderAlarms()
 
-        col.addView(CheckBox(this).apply {
-            text = "فعّل منبّه الفجر"
-            textSize = 15.5f
-            setTextColor(Color.parseColor("#EAF5F0"))
-            isChecked = MissionAlarm.enabled(this@MainActivity)
-            setOnCheckedChangeListener { _, checked ->
-                MissionAlarm.setEnabled(this@MainActivity, checked)
-                paintAlarm()
-            }
+        col.addView(Button(this).apply {
+            text = "➕ أضف منبّه"
+            textSize = 16f
+            setBackgroundColor(Color.parseColor("#D4AF37"))
+            setTextColor(Color.parseColor("#16130A"))
+            setOnClickListener { addAlarmDialog() }
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(6) }
         })
-        col.addView(almState)
-
-        col.addView(body("متى يرنّ بالنسبة للفجر؟"))
-        val offLabel = body("")
-        fun paintOff() {
-            val m = MissionAlarm.offsetMin(this)
-            offLabel.text = when {
-                m == 0 -> "مع الأذان تماماً"
-                m < 0 -> "قبل الأذان بـ " + (-m) + " دقيقة"
-                else -> "بعد الأذان بـ " + m + " دقيقة"
-            }
-        }
-        paintOff()
-        col.addView(offLabel)
-        col.addView(android.widget.SeekBar(this).apply {
-            max = 60                                  // من ٣٠- إلى ٣٠+
-            progress = MissionAlarm.offsetMin(this@MainActivity) + 30
-            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
-                    if (!u) return
-                    MissionAlarm.setOffsetMin(this@MainActivity, p - 30)
-                    paintOff(); paintAlarm()
-                }
-                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
-                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
-            })
-        })
-
-        paintAlarm()
 
         col.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -778,9 +860,8 @@ class MainActivity : Activity() {
         })
 
         col.addView(body(
-            "لو انقطع الإنترنت أو تعطّلت الكاميرا، يتحوّل المنبّه إلى تحدّي كتابة رموز " +
-            "يعمل بلا إنترنت — فلا يبقى هاتفك أسيراً أبداً.\n" +
-            "وللاحتياط يسكت الصوت وحده بعد ٣٠ دقيقة."
+            "لو تعذّر التعرّف على الصور، يطلب منك تصوير ثلاثة أماكن مختلفة — " +
+            "يعمل بلا إنترنت. وللاحتياط يسكت الصوت وحده بعد ٣٠ دقيقة."
         ))
 
         /* اختيار التطبيقات */

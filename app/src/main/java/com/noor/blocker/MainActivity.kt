@@ -569,11 +569,11 @@ class MainActivity : Activity() {
     /** يقول بصراحة أي إذن ناقص — فهذان ما يُسكتان الأذان غالباً */
     private fun paintReady(v: TextView) {
         val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val am = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val am = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
             am.canScheduleExactAlarms()
         } else true
         val batt = try {
-            val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
             pm.isIgnoringBatteryOptimizations(packageName)
         } catch (e: Exception) { true }
 

@@ -26,12 +26,12 @@ import android.widget.TextView
    كان أخضر وذهبياً كبقية التطبيق. والقفل يأتي في وقت صلاة قد يكون
    فجراً أو عشاءً، والعين فيه متعبة — فجعلناه زرقة ليل عميقة ولونَ
    مصباح دافئاً. مريح في العتمة، ومختلف عمّا اعتاده في كل تطبيق. */
-private const val NIGHT_TOP = "#121A33"
-private const val NIGHT_BOT = "#05070F"
-private const val SAND = "#E8BE8E"      // ضوء المصباح — للأرقام والأزرار
-private const val MOON = "#7FA3DE"      // ضوء القمر — للحلقة
-private const val INK = "#EEF2FF"
-private const val FADE = "#8C99BD"
+private const val NIGHT_TOP = "#10131f"
+private const val NIGHT_BOT = "#0a0c14"
+private const val SAND = "#d9d3c7"      // ضوء المصباح — للأرقام والأزرار
+private const val MOON = "#93a9dc"      // ضوء القمر — للحلقة
+private const val INK = "#e8eaf2"
+private const val FADE = "#8b92a8"
 
 /**
  * شاشة القفل.
@@ -65,7 +65,7 @@ class LockActivity : Activity() {
         var color = Color.parseColor(MOON)
         private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            color = Color.parseColor("#222C4F")
+            color = Color.parseColor("#262c3e")
             strokeCap = Paint.Cap.ROUND
         }
         private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -151,11 +151,11 @@ class LockActivity : Activity() {
 
         actionBtn = Button(this).apply {
             textSize = 17f
-            setTextColor(Color.parseColor("#17120B"))
+            setTextColor(Color.parseColor("#14171f"))
             setPadding(0, dp(15), 0, dp(15))
             background = GradientDrawable().apply {
                 cornerRadius = dp(16).toFloat()
-                colors = intArrayOf(Color.parseColor("#F2D5AE"), Color.parseColor(SAND))
+                colors = intArrayOf(Color.parseColor("#efe9de"), Color.parseColor(SAND))
                 orientation = GradientDrawable.Orientation.LEFT_RIGHT
             }
             setOnClickListener { openUnlockTask() }
@@ -166,7 +166,7 @@ class LockActivity : Activity() {
 
         noteView = TextView(this).apply {
             textSize = 12.5f
-            setTextColor(Color.parseColor("#64719A"))
+            setTextColor(Color.parseColor("#767e94"))
             gravity = Gravity.CENTER
             setPadding(0, dp(18), 0, 0)
         }

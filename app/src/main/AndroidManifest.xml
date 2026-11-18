@@ -21,9 +21,6 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- لفتح شاشة منبّه المهمّات فوق شاشة القفل -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-
     <!-- للتحقق من نطق الذكر في تحدّي الاستغفار -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -70,18 +67,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- شاشة مهمّات المنبّه: تظهر فوق القفل وتوقِظ الشاشة -->
-        <activity
-            android:name=".AlarmActivity"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:excludeFromRecents="true"
-            android:taskAffinity="com.noor.blocker.alarm"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            android:screenOrientation="portrait"
-            android:theme="@style/LockTheme" />
-
         <activity
             android:name=".ChallengeActivity"
             android:exported="false"
@@ -89,15 +74,6 @@
             android:excludeFromRecents="true"
             android:screenOrientation="portrait"
             android:theme="@style/LockTheme" />
-
-        <receiver
-            android:name=".MissionReceiver"
-            android:exported="false" />
-
-        <service
-            android:name=".MissionRinger"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
 
         <receiver
             android:name=".AdhanReceiver"

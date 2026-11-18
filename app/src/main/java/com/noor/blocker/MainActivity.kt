@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "12.0"
+private const val APP_VERSION = "13.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -335,7 +335,7 @@ class MainActivity : Activity() {
     /** 0 = الأذكار · 1 = قفل الصلاة · 2 = لوحة التحكّم */
     private fun markTabs(which: Int) {
         val on = Color.parseColor("#D4AF37"); val off = Color.parseColor("#0A3227")
-        val onT = Color.parseColor("#16130A"); val offT = Color.WHITE
+        val onT = Color.parseColor("#14171f"); val offT = Color.WHITE
         listOf(tabWeb, tabBlock, tabAdmin).forEachIndexed { i, b ->
             b.setBackgroundColor(if (i == which) on else off)
             b.setTextColor(if (i == which) onT else offT)
@@ -446,126 +446,6 @@ class MainActivity : Activity() {
         content.addView(adminView)
     }
 
-    /* ─────────── قائمة المنبّهات ─────────── */
-
-    private lateinit var almBox: LinearLayout
-
-    /** يسأل عن الساعة ثم يضيف المنبّه ويُظهره في القائمة */
-    private fun addAlarmDialog() {
-        val now = java.util.Calendar.getInstance()
-        android.app.TimePickerDialog(this, { _, h, m ->
-            MissionAlarm.add(this, h, m, 0)
-            renderAlarms()
-            Toast.makeText(this, "أُضيف المنبّه — اختر أيّامه من تحته", Toast.LENGTH_LONG).show()
-        }, now.get(java.util.Calendar.HOUR_OF_DAY), 0, false).show()
-    }
-
-    /**
-     * يرسم القائمة من جديد.
-     *
-     * ولماذا من جديد لا تعديلاً موضعياً؟ لأن الصفوف قليلة (منبّهات
-     * معدودة)، فإعادة الرسم أوضح من تتبّع أي صفّ تغيّر.
-     */
-    private fun renderAlarms() {
-        if (!::almBox.isInitialized) return
-        almBox.removeAllViews()
-
-        val list = MissionAlarm.all(this)
-        if (list.isEmpty()) {
-            almBox.addView(body("لا منبّهات بعد — اضغط «أضف منبّه» واختر الساعة."))
-            return
-        }
-
-        list.forEach { item -> almBox.addView(alarmRow(item)) }
-    }
-
-    /** صفّ منبّه واحد: الوقت، مفتاح التشغيل، الحذف، ثم أيام الأسبوع */
-    private fun alarmRow(item: MissionAlarm.Item): LinearLayout {
-        val dim = if (item.on) 1f else 0.45f
-
-        val time = TextView(this).apply {
-            text = item.timeText()
-            textSize = 30f
-            setTextColor(Color.parseColor("#EAF5F0"))
-            alpha = dim
-            setOnClickListener {
-                android.app.TimePickerDialog(this@MainActivity, { _, h, m ->
-                    MissionAlarm.setTime(this@MainActivity, item.id, h, m)
-                    renderAlarms()
-                }, item.h, item.m, false).show()
-            }
-        }
-        val days = TextView(this).apply {
-            text = item.daysText()
-            textSize = 13f
-            setTextColor(Color.parseColor("#9DBDB0"))
-            alpha = dim
-        }
-        val sw = CheckBox(this).apply {
-            isChecked = item.on
-            setOnCheckedChangeListener { _, on ->
-                MissionAlarm.setOn(this@MainActivity, item.id, on)
-                renderAlarms()
-            }
-        }
-        val del = Button(this).apply {
-            text = "🗑"
-            setOnClickListener {
-                MissionAlarm.remove(this@MainActivity, item.id)
-                renderAlarms()
-            }
-        }
-
-        val top = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(time)
-                addView(days)
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            addView(sw)
-            addView(del)
-        }
-
-        /* أيام الأسبوع: ح ن ث ر خ ج س */
-        val dayRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            alpha = dim
-        }
-        for (d in 0..6) {
-            val onDay = (item.days shr d) and 1 == 1
-            dayRow.addView(Button(this).apply {
-                text = MissionAlarm.DAY_NAMES[d]
-                textSize = 13f
-                setPadding(0, 0, 0, 0)
-                minWidth = 0
-                minimumWidth = 0
-                setBackgroundColor(Color.parseColor(if (onDay) "#D4AF37" else "#0A3227"))
-                setTextColor(Color.parseColor(if (onDay) "#16130A" else "#9DBDB0"))
-                setOnClickListener {
-                    MissionAlarm.setDays(this@MainActivity, item.id, item.days xor (1 shl d))
-                    renderAlarms()
-                }
-                layoutParams = LinearLayout.LayoutParams(0, dp(38), 1f).apply {
-                    marginStart = dp(2); marginEnd = dp(2)
-                }
-            })
-        }
-
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setBackgroundColor(Color.parseColor("#0A3227"))
-            addView(top)
-            addView(dayRow)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = dp(8) }
-        }
-    }
-
     /** يقول بصراحة أي إذن ناقص — فهذان ما يُسكتان الأذان غالباً */
     private fun paintReady(v: TextView) {
         val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -580,7 +460,7 @@ class MainActivity : Activity() {
         v.text = (if (exact) "✅ المنبّهات الدقيقة: مسموحة" else "❌ المنبّهات الدقيقة: ممنوعة") +
             "\n" + (if (batt) "✅ البطارية: نور مستثنى" else "❌ البطارية: نور غير مستثنى")
         v.setTextColor(android.graphics.Color.parseColor(
-            if (exact && batt) "#10B981" else "#EF4444"))
+            if (exact && batt) "#93a9dc" else "#e88080"))
     }
 
     private fun header(text: String) = TextView(this).apply {
@@ -737,10 +617,10 @@ class MainActivity : Activity() {
         fun paintLockState() {
             if (ScreenLock.isAdmin(this)) {
                 lockState.text = "✅ مفعّل — سيُقفل هاتفك تلقائياً عند الأذان"
-                lockState.setTextColor(Color.parseColor("#10B981"))
+                lockState.setTextColor(Color.parseColor("#93a9dc"))
             } else {
                 lockState.text = "❌ غير مفعّل — سيُمنع الاستخدام لكن الشاشة لن تُقفل"
-                lockState.setTextColor(Color.parseColor("#EF4444"))
+                lockState.setTextColor(Color.parseColor("#e88080"))
             }
         }
         col.addView(body("اقفل الشاشة نفسها عند الأذان، لا مجرّد منع التطبيقات."))
@@ -859,7 +739,7 @@ class MainActivity : Activity() {
                     text = ph
                     textSize = 15f
                     setBackgroundColor(Color.parseColor(if (chosen) "#D4AF37" else "#0A3227"))
-                    setTextColor(Color.parseColor(if (chosen) "#16130A" else "#EAF5F0"))
+                    setTextColor(Color.parseColor(if (chosen) "#14171f" else "#EAF5F0"))
                     setOnClickListener {
                         ChallengeLock.setPhrase(this@MainActivity, ph)
                         paintPhrases()
@@ -881,55 +761,8 @@ class MainActivity : Activity() {
 
         renderChallengeState(chState)
 
-        /* منبّه المهمّات */
-        col.addView(header("٦) منبّه المهمّات"))
-        col.addView(body(
-            "منبّه عاديّ بكل شيء إلا طريقة إسكاته: تضبط الساعة بيدك، وحين يرنّ " +
-            "لا يوجد زرّ إيقاف — يطلب منك تصوير أشياء في بيتك واحداً بعد واحد.\n" +
-            "تختار ما تُصوّره وعددَه من صفحة «منبّه المهمّات» في التطبيق."
-        ))
-
-        paintReady(readyView)
-
-        almBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(almBox)
-        renderAlarms()
-
-        col.addView(Button(this).apply {
-            text = "➕ أضف منبّه"
-            textSize = 16f
-            setBackgroundColor(Color.parseColor("#D4AF37"))
-            setTextColor(Color.parseColor("#16130A"))
-            setOnClickListener { addAlarmDialog() }
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(6) }
-        })
-
-        col.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            addView(Button(this@MainActivity).apply {
-                text = "⏰ جرّب المنبّه الآن"
-                setOnClickListener {
-                    MissionRinger.start(this@MainActivity)
-                    startActivity(Intent(this@MainActivity, AlarmActivity::class.java))
-                }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            addView(Button(this@MainActivity).apply {
-                text = "■ أوقف"
-                setOnClickListener { MissionRinger.stop(this@MainActivity) }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            })
-        })
-
-        col.addView(body(
-            "لو تعذّر التعرّف على الصور، يطلب منك تصوير ثلاثة أماكن مختلفة — " +
-            "يعمل بلا إنترنت. وللاحتياط يسكت الصوت وحده بعد ٣٠ دقيقة."
-        ))
-
         /* اختيار التطبيقات */
-        col.addView(header("٧) تطبيقات تحدّي الاستغفار"))
+        col.addView(header("٦) تطبيقات تحدّي الاستغفار"))
         col.addView(body(
             "هذه القائمة لتحدّي الاستغفار وحده.\n" +
             "قفل الصلاة لم يعد يعتمد عليها — فهو يقفل الهاتف كلّه."
@@ -971,7 +804,7 @@ class MainActivity : Activity() {
             hint = "ابحث عن تطبيق…"
             textSize = 15f
             setTextColor(Color.parseColor("#EAF5F0"))
-            setHintTextColor(Color.parseColor("#6E8F82"))
+            setHintTextColor(Color.parseColor("#8b92a8"))
             addTextChangedListener(object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
                     filter = s?.toString()?.trim() ?: ""
@@ -993,7 +826,7 @@ class MainActivity : Activity() {
             text = "✓ تم — احفظ وارجع"
             textSize = 17f
             setBackgroundColor(Color.parseColor("#D4AF37"))
-            setTextColor(Color.parseColor("#16130A"))
+            setTextColor(Color.parseColor("#14171f"))
             setPadding(0, dp(14), 0, dp(14))
             setOnClickListener {
                 Prefs.setBlockedApps(this@MainActivity, selected)
@@ -1011,7 +844,7 @@ class MainActivity : Activity() {
             text = "\nكل تغيير يُحفظ فوراً — الزر للتأكيد والرجوع فقط.\n\n" +
                    "ملاحظة: لا يقرأ التطبيق محتوى شاشتك إطلاقاً — يعرف فقط اسم التطبيق المفتوح."
             textSize = 12f
-            setTextColor(Color.parseColor("#6E8F82"))
+            setTextColor(Color.parseColor("#8b92a8"))
             setPadding(0, dp(14), 0, 0)
         })
 
@@ -1041,8 +874,8 @@ class MainActivity : Activity() {
         countView.setTextColor(
             when {
                 n == 0 -> Color.parseColor("#9DBDB0")
-                n > 15 -> Color.parseColor("#EF4444")
-                else -> Color.parseColor("#10B981")
+                n > 15 -> Color.parseColor("#e88080")
+                else -> Color.parseColor("#93a9dc")
             }
         )
     }
@@ -1090,17 +923,17 @@ class MainActivity : Activity() {
     private fun renderChallengeState(v: TextView) {
         if (!ChallengeLock.enabled(this)) {
             v.text = "نظام النقاط متوقّف"
-            v.setTextColor(Color.parseColor("#6E8F82"))
+            v.setTextColor(Color.parseColor("#8b92a8"))
             return
         }
         val reward = "الجولة: ${ChallengeLock.reps(this)} ضغطة = ${Credit.rewardMinutes(this)} دقيقة"
         if (Credit.isEmpty(this)) {
             v.text = "🔒 رصيدك صفر — أتمّ جولة لتكسب\n$reward"
-            v.setTextColor(Color.parseColor("#EF4444"))
+            v.setTextColor(Color.parseColor("#e88080"))
         } else {
             val flow = if (Credit.isSpending(this)) "⏳ يُصرف الآن" else "⏸ متوقّف — لست في تطبيق محظور"
             v.text = "💎 رصيدك ${Credit.format(this)}  ·  $flow\n$reward"
-            v.setTextColor(Color.parseColor("#10B981"))
+            v.setTextColor(Color.parseColor("#93a9dc"))
         }
     }
 
@@ -1112,7 +945,7 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         val on = isServiceEnabled()
         statusView.text = if (on) "✅ الخدمة مفعّلة — الحظر يعمل" else "⛔ الخدمة غير مفعّلة"
-        statusView.setTextColor(Color.parseColor(if (on) "#10B981" else "#EF4444"))
+        statusView.setTextColor(Color.parseColor(if (on) "#93a9dc" else "#e88080"))
 
         val t = PrayerLock.todayTimes(this)
         val sb = StringBuilder()

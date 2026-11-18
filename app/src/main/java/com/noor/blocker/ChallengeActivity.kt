@@ -71,10 +71,10 @@ class ChallengeActivity : Activity(), SensorEventListener {
     class RingView(ctx: Context) : View(ctx) {
         var progress = 0f
         private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; color = Color.parseColor("#222C4F"); strokeCap = Paint.Cap.ROUND
+            style = Paint.Style.STROKE; color = Color.parseColor("#262c3e"); strokeCap = Paint.Cap.ROUND
         }
         private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; color = Color.parseColor("#E8BE8E"); strokeCap = Paint.Cap.ROUND
+            style = Paint.Style.STROKE; color = Color.parseColor("#d9d3c7"); strokeCap = Paint.Cap.ROUND
         }
         private val box = RectF()
         override fun onDraw(c: Canvas) {
@@ -94,9 +94,9 @@ class ChallengeActivity : Activity(), SensorEventListener {
         private val p = Paint(Paint.ANTI_ALIAS_FLAG)
         override fun onDraw(c: Canvas) {
             val h = height.toFloat()
-            p.color = Color.parseColor("#1C2447")
+            p.color = Color.parseColor("#222838")
             c.drawRoundRect(RectF(0f, 0f, width.toFloat(), h), h / 2, h / 2, p)
-            p.color = Color.parseColor("#7FA3DE")
+            p.color = Color.parseColor("#93a9dc")
             c.drawRoundRect(RectF(0f, 0f, width * level.coerceIn(0f, 1f), h), h / 2, h / 2, p)
         }
     }
@@ -105,8 +105,8 @@ class ChallengeActivity : Activity(), SensorEventListener {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = Color.parseColor("#121A33")
-            window.navigationBarColor = Color.parseColor("#05070F")
+            window.statusBarColor = Color.parseColor("#10131f")
+            window.navigationBarColor = Color.parseColor("#0a0c14")
         }
 
         target = ChallengeLock.reps(this)
@@ -119,14 +119,14 @@ class ChallengeActivity : Activity(), SensorEventListener {
             setPadding(dp(28), dp(24), dp(28), dp(24))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(Color.parseColor("#121A33"), Color.parseColor("#05070F"))
+                intArrayOf(Color.parseColor("#10131f"), Color.parseColor("#0a0c14"))
             )
         }
 
         phraseView = TextView(this).apply {
             text = ChallengeLock.phrase(this@ChallengeActivity)
             textSize = 27f
-            setTextColor(Color.parseColor("#E8BE8E"))
+            setTextColor(Color.parseColor("#d9d3c7"))
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(26))
         }
@@ -135,7 +135,7 @@ class ChallengeActivity : Activity(), SensorEventListener {
         ring = RingView(this)
         countView = TextView(this).apply {
             textSize = 46f
-            setTextColor(Color.parseColor("#EEF2FF"))
+            setTextColor(Color.parseColor("#e8eaf2"))
             gravity = Gravity.CENTER
             includeFontPadding = false
         }
@@ -147,7 +147,7 @@ class ChallengeActivity : Activity(), SensorEventListener {
 
         hintView = TextView(this).apply {
             textSize = 14.5f
-            setTextColor(Color.parseColor("#8C99BD"))
+            setTextColor(Color.parseColor("#8b92a8"))
             gravity = Gravity.CENTER
             setPadding(0, dp(22), 0, dp(20))
         }
@@ -159,7 +159,7 @@ class ChallengeActivity : Activity(), SensorEventListener {
 
         micNote = TextView(this).apply {
             textSize = 12.5f
-            setTextColor(Color.parseColor("#64719A"))
+            setTextColor(Color.parseColor("#767e94"))
             gravity = Gravity.CENTER
             setPadding(0, dp(9), 0, 0)
         }

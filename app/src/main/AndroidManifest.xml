@@ -82,6 +82,14 @@
             android:screenOrientation="portrait"
             android:theme="@style/LockTheme" />
 
+        <activity
+            android:name=".ChallengeActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/LockTheme" />
+
         <receiver
             android:name=".MissionReceiver"
             android:exported="false" />

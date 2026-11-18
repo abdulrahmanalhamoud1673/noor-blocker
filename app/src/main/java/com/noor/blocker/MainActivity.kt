@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "11.1"
+private const val APP_VERSION = "12.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -190,12 +190,12 @@ class MainActivity : Activity() {
     }
 
     /** يفتح تحدّي الاستغفار بالعدد والذكر المحفوظين */
+    /**
+     * التحدّي صار شاشةً أصيلة لا صفحةَ ويب: حسّاس القرب يعدّ الضغطات
+     * والميكروفون يبقى مفتوحاً طوال الجولة. الكاميرا لم تكن ترى الحركة.
+     */
     private fun openChallenge() {
-        showWeb()
-        val reps = ChallengeLock.reps(this)
-        val phrase = java.net.URLEncoder.encode(ChallengeLock.phrase(this), "UTF-8")
-        webView?.loadUrl("$NOOR_WEB#challenge=$reps&phrase=$phrase")
-        Toast.makeText(this, "أتمّ الضغطات مع الذكر ليُفكّ الحظر", Toast.LENGTH_LONG).show()
+        startActivity(Intent(this, ChallengeActivity::class.java))
     }
 
     /**

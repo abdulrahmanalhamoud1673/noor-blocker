@@ -2,7 +2,13 @@ package com.noor.blocker
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -12,25 +18,37 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 
+/* ───────── ثيم «الليل» ─────────
+   كان أخضر وذهبياً كبقية التطبيق. والقفل يأتي في وقت صلاة قد يكون
+   فجراً أو عشاءً، والعين فيه متعبة — فجعلناه زرقة ليل عميقة ولونَ
+   مصباح دافئاً. مريح في العتمة، ومختلف عمّا اعتاده في كل تطبيق. */
+private const val NIGHT_TOP = "#121A33"
+private const val NIGHT_BOT = "#05070F"
+private const val SAND = "#E8BE8E"      // ضوء المصباح — للأرقام والأزرار
+private const val MOON = "#7FA3DE"      // ضوء القمر — للحلقة
+private const val INK = "#EEF2FF"
+private const val FADE = "#8C99BD"
+
 /**
- * شاشة القفل التي تظهر فوق التطبيق المحظور.
+ * شاشة القفل.
  *
- * تخدم حالتين:
- *  • وقت الصلاة — لا يُفتح إلا بأداء الصلاة كاملة أمام الكاميرا.
- *  • تحدّي الاستغفار — لا يُفتح إلا بإتمام الضغطات مع الذكر.
+ * حالتان: وقت صلاة، أو نفاد رصيد تحدّي الاستغفار.
  *
- * لا يوجد زر «تجاوز» في الحالتين.
+ * والكلام فيها قليل عمداً: حلقةٌ تُفرِغ ما بقي من الوقت، سطرٌ يقول
+ * لماذا، وزرٌّ واحد. من يقرأ فقرةً كاملةً وهو ممنوع من هاتفه؟
  */
 class LockActivity : Activity() {
 
     private val handler = Handler(Looper.getMainLooper())
 
+    private lateinit var ring: RingView
+    private lateinit var bigView: TextView
     private lateinit var titleView: TextView
-    private lateinit var stateView: TextView
-    private lateinit var timerView: TextView
+    private lateinit var subView: TextView
     private lateinit var actionBtn: Button
     private lateinit var noteView: TextView
 
@@ -38,6 +56,35 @@ class LockActivity : Activity() {
         override fun run() {
             render()
             handler.postDelayed(this, 1000)
+        }
+    }
+
+    /** حلقة تُفرِغ مع الوقت — تُفهم بنظرة واحدة بلا قراءة */
+    class RingView(ctx: android.content.Context) : View(ctx) {
+        var progress = 0f           // ٠ إلى ١
+        var color = Color.parseColor(MOON)
+        private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            color = Color.parseColor("#222C4F")
+            strokeCap = Paint.Cap.ROUND
+        }
+        private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+        }
+        private val box = RectF()
+
+        override fun onDraw(c: Canvas) {
+            val w = width.toFloat()
+            val stroke = w * 0.055f
+            track.strokeWidth = stroke
+            arc.strokeWidth = stroke
+            val pad = stroke / 2 + w * 0.02f
+            box.set(pad, pad, w - pad, height - pad)
+            c.drawArc(box, 0f, 360f, false, track)
+            arc.shader = LinearGradient(0f, 0f, w, height.toFloat(),
+                color, Color.parseColor(SAND), Shader.TileMode.CLAMP)
+            c.drawArc(box, -90f, 360f * progress.coerceIn(0f, 1f), false, arc)
         }
     }
 
@@ -53,6 +100,10 @@ class LockActivity : Activity() {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = Color.parseColor(NIGHT_TOP)
+            window.navigationBarColor = Color.parseColor(NIGHT_BOT)
+        }
 
         val d = resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
@@ -60,51 +111,53 @@ class LockActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#04150F"))
-            setPadding(dp(28), dp(28), dp(28), dp(28))
+            setPadding(dp(30), dp(26), dp(30), dp(26))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.parseColor(NIGHT_TOP), Color.parseColor(NIGHT_BOT))
+            )
         }
 
-        root.addView(TextView(this).apply {
-            text = "🕌"; textSize = 52f; gravity = Gravity.CENTER
-        })
+        /* الحلقة والرقم بداخلها */
+        ring = RingView(this)
+        bigView = TextView(this).apply {
+            textSize = 42f
+            setTextColor(Color.parseColor(SAND))
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+        }
+        val dial = FrameLayout(this).apply {
+            addView(ring, FrameLayout.LayoutParams(dp(210), dp(210)))
+            addView(bigView, FrameLayout.LayoutParams(
+                dp(210), dp(210)).apply { gravity = Gravity.CENTER })
+        }
+        root.addView(dial, LinearLayout.LayoutParams(dp(210), dp(210)))
 
         titleView = TextView(this).apply {
-            textSize = 25f
-            setTextColor(Color.WHITE)
+            textSize = 23f
+            setTextColor(Color.parseColor(INK))
             gravity = Gravity.CENTER
-            setPadding(0, dp(14), 0, dp(8))
+            setPadding(0, dp(26), 0, dp(4))
         }
         root.addView(titleView)
 
-        root.addView(TextView(this).apply {
-            text = "﴿ إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا ﴾"
-            textSize = 14f
-            setTextColor(Color.parseColor("#9DBDB0"))
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(22))
-        })
-
-        stateView = TextView(this).apply {
+        subView = TextView(this).apply {
             textSize = 15f
-            setTextColor(Color.parseColor("#9DBDB0"))
+            setTextColor(Color.parseColor(FADE))
             gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(30))
         }
-        root.addView(stateView)
+        root.addView(subView)
 
-        timerView = TextView(this).apply {
-            textSize = 40f
-            setTextColor(Color.parseColor("#F0D98A"))
-            gravity = Gravity.CENTER
-            setPadding(0, dp(4), 0, dp(24))
-        }
-        root.addView(timerView)
-
-        /* الطريق الوحيد */
         actionBtn = Button(this).apply {
-            textSize = 18f
-            setBackgroundColor(Color.parseColor("#D4AF37"))
-            setTextColor(Color.parseColor("#16130A"))
-            setPadding(0, dp(16), 0, dp(16))
+            textSize = 17f
+            setTextColor(Color.parseColor("#17120B"))
+            setPadding(0, dp(15), 0, dp(15))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                colors = intArrayOf(Color.parseColor("#F2D5AE"), Color.parseColor(SAND))
+                orientation = GradientDrawable.Orientation.LEFT_RIGHT
+            }
             setOnClickListener { openUnlockTask() }
         }
         root.addView(actionBtn, LinearLayout.LayoutParams(
@@ -113,10 +166,9 @@ class LockActivity : Activity() {
 
         noteView = TextView(this).apply {
             textSize = 12.5f
-            setTextColor(Color.parseColor("#6E8F82"))
+            setTextColor(Color.parseColor("#64719A"))
             gravity = Gravity.CENTER
-            setPadding(0, dp(16), 0, 0)
-            setLineSpacing(0f, 1.5f)
+            setPadding(0, dp(18), 0, 0)
         }
         root.addView(noteView)
 
@@ -145,30 +197,31 @@ class LockActivity : Activity() {
         val lock = PrayerLock.current(this)
 
         if (lock != null) {
-            titleView.text = "حان الآن وقت صلاة ${lock.prayerName}"
-            stateView.text = "${lock.rakaat} ركعات · يُفتح الهاتف بعد"
-            val s = lock.secondsLeft
-            timerView.text = String.format("%02d:%02d", s / 60, s % 60)
+            val total = Prefs.lockMinutes(this) * 60
+            val left = lock.secondsLeft
+            ring.color = Color.parseColor(MOON)
+            ring.progress = if (total > 0) left.toFloat() / total else 0f
+            ring.invalidate()
 
-            // لا زرّ يفكّ القفل: الوقت وحده يفكّه. الزرّ يفتح المدرّب
-            // لتقضي المدة في الصلاة لا في انتظار العدّاد.
+            bigView.text = String.format("%02d:%02d", left / 60, left % 60)
+            titleView.text = "صلاة ${lock.prayerName}"
+            subView.text = "${lock.rakaat} ركعات"
             actionBtn.text = "🕋 صلِّ مع الكاميرا"
-            noteView.text = "الهاتف مقفل بالكامل حتى ينتهي العدّاد.\n" +
-                            "لا يوجد زرّ لفكّه — ولا حاجة لأن تفعل شيئاً.\n" +
-                            "الاتصال والطوارئ تبقى متاحة دائماً."
+            noteView.text = "الاتصال والطوارئ متاحة"
             return
         }
 
         if (ChallengeLock.active(this)) {
-            val reps = ChallengeLock.reps(this)
+            ring.color = Color.parseColor("#C98ADE")
+            ring.progress = 1f
+            ring.invalidate()
+
+            bigView.textSize = 34f
+            bigView.text = "${ChallengeLock.reps(this)}\nضغطة"
             titleView.text = "نفد رصيدك"
-            stateView.text = "$reps ضغطات مع الذكر تكسبك"
-            timerView.text = "${Credit.rewardMinutes(this)} دقيقة"
+            subView.text = "تكسب ${Credit.rewardMinutes(this)} دقيقة"
             actionBtn.text = "💪 اكسب رصيداً"
-            noteView.text = "مع كل ضغطة قل: ${ChallengeLock.phrase(this)}\n" +
-                            "الرصيد لا يُصرف إلا وأنت داخل التطبيقات المحظورة — " +
-                            "تخرج منها فيتوقّف العدّ ويبقى لك.\n" +
-                            "كسبتَ اليوم ${Credit.earnedMinutes(this)} دقيقة، وصرفتَ ${Credit.spentMinutes(this)}."
+            noteView.text = "قل مع كل ضغطة: ${ChallengeLock.phrase(this)}"
             return
         }
 

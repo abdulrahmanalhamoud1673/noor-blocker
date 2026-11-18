@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "11.0"
+private const val APP_VERSION = "11.1"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -566,6 +566,23 @@ class MainActivity : Activity() {
         }
     }
 
+    /** يقول بصراحة أي إذن ناقص — فهذان ما يُسكتان الأذان غالباً */
+    private fun paintReady(v: TextView) {
+        val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val am = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            am.canScheduleExactAlarms()
+        } else true
+        val batt = try {
+            val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            pm.isIgnoringBatteryOptimizations(packageName)
+        } catch (e: Exception) { true }
+
+        v.text = (if (exact) "✅ المنبّهات الدقيقة: مسموحة" else "❌ المنبّهات الدقيقة: ممنوعة") +
+            "\n" + (if (batt) "✅ البطارية: نور مستثنى" else "❌ البطارية: نور غير مستثنى")
+        v.setTextColor(android.graphics.Color.parseColor(
+            if (exact && batt) "#10B981" else "#EF4444"))
+    }
+
     private fun header(text: String) = TextView(this).apply {
         this.text = text
         textSize = 17f
@@ -601,6 +618,51 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
         })
+
+        /* ما الذي قد يُسكت الأذان */
+        col.addView(header("١·٥) جاهزية التنبيه"))
+        col.addView(body(
+            "الأذان يرنّ والهاتف نائم فقط إذا سُمح له بأمرين. اضغط الأحمر منهما."
+        ))
+        val readyView = body("")
+        col.addView(readyView)
+
+        col.addView(Button(this).apply {
+            text = "⏱ اسمح بالمنبّهات الدقيقة"
+            setOnClickListener {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    try {
+                        startActivity(Intent(
+                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            android.net.Uri.parse("package:" + packageName)
+                        ))
+                    } catch (e: Exception) {
+                        startActivity(Intent(Settings.ACTION_DATE_SETTINGS))
+                    }
+                } else {
+                    Toast.makeText(this@MainActivity, "مسموح أصلاً على نسخة أندرويد عندك ✓",
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+
+        col.addView(Button(this).apply {
+            text = "🔋 استثنِ نور من توفير البطارية"
+            setOnClickListener {
+                try {
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    Toast.makeText(this@MainActivity,
+                        "اختر «الكل» ثم «نور» ثم «عدم التحسين»", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch (_: Exception) {}
+                }
+            }
+        })
+
+        col.addView(body(
+            "بعض الهواتف (شاومي، أوبو، هواوي) تُغلق التطبيقات النائمة مهما فعلنا. " +
+            "ابحث فيها عن «التشغيل التلقائي» أو «Autostart» واسمح لنور."
+        ))
 
         /* تنبيه الأذان */
         col.addView(header("٢) تنبيه الأذان"))
@@ -826,6 +888,8 @@ class MainActivity : Activity() {
             "لا يوجد زرّ إيقاف — يطلب منك تصوير أشياء في بيتك واحداً بعد واحد.\n" +
             "تختار ما تُصوّره وعددَه من صفحة «منبّه المهمّات» في التطبيق."
         ))
+
+        paintReady(readyView)
 
         almBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(almBox)

@@ -120,46 +120,56 @@ object PrayerAlarm {
     }
 }
 
-/** يستقبل التنبيه، يعرض الإشعار، ثم يجدول الصلاة التالية */
+/**
+ * يستقبل التنبيه: يجدول التالي أولاً، ثمّ يرفع الأذان ويقفل الهاتف.
+ *
+ * ولماذا الجدولة أولاً؟ لأنها كانت آخر سطر، فكان أي عطل قبلها يقطع
+ * سلسلة الأذان إلى الأبد: لا أذان، ولا موعد بعده. الآن مهما حدث
+ * بعدها، أذانُ الصلاة القادمة محجوز.
+ */
 class AdhanReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
+        // أوّلاً وقبل كل شيء — لا شيء يقطع السلسلة
+        try { PrayerAlarm.schedule(ctx) } catch (_: Exception) {}
+
         val name = intent.getStringExtra(PrayerAlarm.EXTRA_PRAYER) ?: "الصلاة"
         PrayerAlarm.createChannel(ctx)
+        EventLog.add(ctx, EventLog.ADHAN, "أذان " + name)
 
-        val open = PendingIntent.getActivity(
-            ctx, 0,
-            Intent(ctx, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        EventLog.add(ctx, EventLog.ADHAN, "أذان $name")
         if (Prefs.adhanSound(ctx)) {
-            // أذان كامل بصوت مؤذّن، عبر خدمة أمامية حتى لا يُقطع بعد ثوانٍ
-            AdhanPlayer.play(ctx, name)
-        } else {
-            val n = Notification.Builder(ctx).let {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                    Notification.Builder(ctx, PrayerAlarm.CHANNEL_ID) else it
+            // أذان كامل بصوت مؤذّن عبر خدمة أمامية حتى لا يُقطع بعد ثوانٍ.
+            // وأندرويد ١٢ قد يرفض تشغيلها من الخلفية، فنُمسك الرفض
+            // ونرفع الأذان بإشعار ملء الشاشة بدلاً من أن نسقط بلا صوت.
+            try {
+                AdhanPlayer.play(ctx, name)
+            } catch (e: Exception) {
+                EventLog.add(ctx, EventLog.ADHAN, "تعذّر تشغيل الخدمة — إشعار بدلاً منها")
+                notifyAdhan(ctx, name, loud = true)
             }
-                .setSmallIcon(R.drawable.ic_launcher_noor)
-                .setContentTitle("حان الآن وقت صلاة $name")
-                .setContentText("توقّف وأقم الصلاة 🕌")
-                .setContentIntent(open)
-                .setAutoCancel(true)
-                .build()
-
-            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.notify(1001, n)
+        } else {
+            notifyAdhan(ctx, name, loud = false)
         }
 
-        // نُظهر قفل الهاتف فور دخول الوقت لا عند أول لمسة.
-        // تأخير قصير كي لا يزاحم إشعار الأذان.
-        if (Prefs.enabled(ctx)) {
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+        // قفل الهاتف بعد ثوانٍ قليلة.
+        //
+        // كان هذا postDelayed عادياً، والنظام يُجمّد التطبيق فور انتهاء
+        // onReceive — فلا يأتي الموعد أبداً والهاتف نائم. goAsync مع قفل
+        // إيقاظ يُبقي المستقبِل حيّاً حتى ننتهي فعلاً.
+        if (!Prefs.enabled(ctx) || PrayerLock.current(ctx) == null) return
+
+        val pending = goAsync()
+        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        val wake = try {
+            pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "noor:adhanLock")
+                .apply { acquire(20_000L) }
+        } catch (e: Exception) { null }
+
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        h.postDelayed({
+            try {
                 if (PrayerLock.current(ctx) != null) {
                     EventLog.add(ctx, EventLog.PRAYER,
-                        "قُفل الهاتف لصلاة $name — ${Prefs.lockMinutes(ctx)} دقيقة")
+                        "قُفل الهاتف لصلاة " + name + " — " + Prefs.lockMinutes(ctx) + " دقيقة")
                     ctx.startActivity(Intent(ctx, LockActivity::class.java).apply {
                         addFlags(
                             Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -167,17 +177,42 @@ class AdhanReceiver : BroadcastReceiver() {
                             Intent.FLAG_ACTIVITY_NO_ANIMATION
                         )
                     })
-                    // ثم نُطفئ الشاشة فعلياً: إن كان الهاتف بيده أُقفل،
-                    // وإن كان مغلقاً بقي مغلقاً. نمهله ثوانيَ ليقرأ السبب.
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        if (PrayerLock.current(ctx) != null) ScreenLock.lockNow(ctx)
-                    }, 6000)
                 }
-            }, 1500)
+            } catch (_: Exception) {}
+
+            // ثم نُطفئ الشاشة فعلياً: إن كان الهاتف بيده أُقفل،
+            // وإن كان مغلقاً بقي مغلقاً. نمهله ثوانيَ ليقرأ السبب.
+            h.postDelayed({
+                try { if (PrayerLock.current(ctx) != null) ScreenLock.lockNow(ctx) } catch (_: Exception) {}
+                try { if (wake?.isHeld == true) wake.release() } catch (_: Exception) {}
+                pending.finish()
+            }, 6000)
+        }, 1500)
+    }
+
+    /** إشعار الأذان — بصوت عالٍ وملء الشاشة حين تتعذّر الخدمة */
+    private fun notifyAdhan(ctx: Context, name: String, loud: Boolean) {
+        val open = PendingIntent.getActivity(
+            ctx, 0,
+            Intent(ctx, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            Notification.Builder(ctx, PrayerAlarm.CHANNEL_ID) else Notification.Builder(ctx)
+
+        b.setSmallIcon(R.drawable.ic_launcher_noor)
+            .setContentTitle("حان الآن وقت صلاة " + name)
+            .setContentText("توقّف وأقم الصلاة 🕌")
+            .setContentIntent(open)
+            .setAutoCancel(true)
+        if (loud) {
+            b.setCategory(Notification.CATEGORY_ALARM)
+            b.setFullScreenIntent(open, true)
         }
 
-        // جدولة الصلاة التالية
-        PrayerAlarm.schedule(ctx)
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(1001, b.build())
     }
 }
 

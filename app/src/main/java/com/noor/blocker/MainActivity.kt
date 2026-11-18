@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "13.1"
+private const val APP_VERSION = "14.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -46,16 +46,6 @@ class NoorBridge(
     private val ctx: android.content.Context,
     private val onListen: (String) -> Unit
 ) {
-    @android.webkit.JavascriptInterface
-    fun prayerCompleted() {
-        val lock = PrayerLock.current(ctx) ?: return
-        Prefs.markPrayed(ctx, lock.key)
-        EventLog.add(ctx, EventLog.PRAYER, "صلّيتَ ${lock.prayerName} أمام الكاميرا")
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            Toast.makeText(ctx, "تقبّل الله منك — فُتح القفل 🤲", Toast.LENGTH_LONG).show()
-        }
-    }
-
     /** أتمّ تحدّي الاستغفار — يُضاف الرصيد */
     @android.webkit.JavascriptInterface
     fun challengeCompleted() {
@@ -135,7 +125,7 @@ class MainActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#0A0C14"))
+            setBackgroundColor(Color.parseColor("#EFE9DD"))
         }
 
         root.addView(buildBanner())
@@ -150,9 +140,7 @@ class MainActivity : Activity() {
         showWeb()
 
         // قادم من شاشة القفل
-        if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_COACH, false) == true) {
-            openCoach(intent.getIntExtra(LockActivity.EXTRA_RAKAAT, 4))
-        } else if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_CHALLENGE, false) == true) {
+        if (intent?.getBooleanExtra(LockActivity.EXTRA_OPEN_CHALLENGE, false) == true) {
             openChallenge()
         }
     }
@@ -176,17 +164,6 @@ class MainActivity : Activity() {
             Toast.makeText(this, "تم منح الكاميرا — اضغط «ابدأ» الآن", Toast.LENGTH_LONG).show()
             webView?.reload()
         }
-    }
-
-    /**
-     * يفتح مدرّب الصلاة في وضع فكّ القفل.
-     * نمرّر عدد الركعات في الرابط فتُثبَّت الصلاة المطلوبة،
-     * ولا يستطيع اختيار صلاة أقصر للتحايل.
-     */
-    private fun openCoach(rakaat: Int) {
-        showWeb()
-        webView?.loadUrl("$NOOR_WEB#pray=$rakaat")
-        Toast.makeText(this, "أدِّ الصلاة كاملة أمام الكاميرا ليُفتح القفل", Toast.LENGTH_LONG).show()
     }
 
     /** يفتح تحدّي الاستغفار بالعدد والذكر المحفوظين */
@@ -284,8 +261,8 @@ class MainActivity : Activity() {
         banner = TextView(this).apply {
             textSize = 15f
             gravity = Gravity.CENTER
-            setTextColor(Color.parseColor("#F0EBE0"))
-            setBackgroundColor(Color.parseColor("#1E2334"))
+            setTextColor(Color.parseColor("#8D5F33"))
+            setBackgroundColor(Color.parseColor("#FFFFFF"))
             setPadding(dp(12), dp(12), dp(12), dp(12))
         }
         updateBanner()
@@ -310,7 +287,7 @@ class MainActivity : Activity() {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(10), dp(10), dp(10), dp(10))
-            setBackgroundColor(Color.parseColor("#10131F"))
+            setBackgroundColor(Color.parseColor("#F7F3EC"))
         }
         val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
 
@@ -334,8 +311,8 @@ class MainActivity : Activity() {
 
     /** 0 = الأذكار · 1 = قفل الصلاة · 2 = لوحة التحكّم */
     private fun markTabs(which: Int) {
-        val on = Color.parseColor("#D9D3C7"); val off = Color.parseColor("#1E2334")
-        val onT = Color.parseColor("#14171f"); val offT = Color.WHITE
+        val on = Color.parseColor("#B07A46"); val off = Color.parseColor("#FFFFFF")
+        val onT = Color.parseColor("#FFFFFF"); val offT = Color.WHITE
         listOf(tabWeb, tabBlock, tabAdmin).forEachIndexed { i, b ->
             b.setBackgroundColor(if (i == which) on else off)
             b.setTextColor(if (i == which) onT else offT)
@@ -460,20 +437,20 @@ class MainActivity : Activity() {
         v.text = (if (exact) "✅ المنبّهات الدقيقة: مسموحة" else "❌ المنبّهات الدقيقة: ممنوعة") +
             "\n" + (if (batt) "✅ البطارية: نور مستثنى" else "❌ البطارية: نور غير مستثنى")
         v.setTextColor(android.graphics.Color.parseColor(
-            if (exact && batt) "#93a9dc" else "#e88080"))
+            if (exact && batt) "#4A72A8" else "#C0564E"))
     }
 
     private fun header(text: String) = TextView(this).apply {
         this.text = text
         textSize = 17f
-        setTextColor(Color.parseColor("#D9D3C7"))
+        setTextColor(Color.parseColor("#B07A46"))
         setPadding(0, dp(20), 0, dp(9))
     }
 
     private fun body(text: String) = TextView(this).apply {
         this.text = text
         textSize = 13.5f
-        setTextColor(Color.parseColor("#8B92A8"))
+        setTextColor(Color.parseColor("#7B7468"))
         setPadding(0, 0, 0, dp(8))
     }
 
@@ -550,7 +527,7 @@ class MainActivity : Activity() {
         col.addView(CheckBox(this).apply {
             text = "فعّل تنبيه الأذان"
             textSize = 15.5f
-            setTextColor(Color.parseColor("#EEF0F8"))
+            setTextColor(Color.parseColor("#2B2A31"))
             isChecked = Prefs.notifyEnabled(this@MainActivity)
             setOnCheckedChangeListener { _, checked ->
                 Prefs.setNotifyEnabled(this@MainActivity, checked)
@@ -566,7 +543,7 @@ class MainActivity : Activity() {
         col.addView(CheckBox(this).apply {
             text = "ارفع الأذان بصوت مؤذّن (بدل نغمة قصيرة)"
             textSize = 15.5f
-            setTextColor(Color.parseColor("#EEF0F8"))
+            setTextColor(Color.parseColor("#2B2A31"))
             isChecked = Prefs.adhanSound(this@MainActivity)
             setOnCheckedChangeListener { _, checked ->
                 Prefs.setAdhanSound(this@MainActivity, checked)
@@ -600,7 +577,7 @@ class MainActivity : Activity() {
         col.addView(header("٣) أوقات الصلاة اليوم"))
         timesView = TextView(this).apply {
             textSize = 14.5f
-            setTextColor(Color.parseColor("#EEF0F8"))
+            setTextColor(Color.parseColor("#2B2A31"))
             setLineSpacing(0f, 1.45f)
         }
         col.addView(timesView)
@@ -617,10 +594,10 @@ class MainActivity : Activity() {
         fun paintLockState() {
             if (ScreenLock.isAdmin(this)) {
                 lockState.text = "✅ مفعّل — سيُقفل هاتفك تلقائياً عند الأذان"
-                lockState.setTextColor(Color.parseColor("#93a9dc"))
+                lockState.setTextColor(Color.parseColor("#4A72A8"))
             } else {
                 lockState.text = "❌ غير مفعّل — سيُمنع الاستخدام لكن الشاشة لن تُقفل"
-                lockState.setTextColor(Color.parseColor("#e88080"))
+                lockState.setTextColor(Color.parseColor("#C0564E"))
             }
         }
         col.addView(body("اقفل الشاشة نفسها عند الأذان، لا مجرّد منع التطبيقات."))
@@ -677,7 +654,7 @@ class MainActivity : Activity() {
         col.addView(CheckBox(this).apply {
             text = "فعّل نظام النقاط"
             textSize = 15.5f
-            setTextColor(Color.parseColor("#EEF0F8"))
+            setTextColor(Color.parseColor("#2B2A31"))
             isChecked = ChallengeLock.enabled(this@MainActivity)
             setOnCheckedChangeListener { _, on ->
                 ChallengeLock.setEnabled(this@MainActivity, on)
@@ -738,8 +715,8 @@ class MainActivity : Activity() {
                 phraseBox.addView(Button(this@MainActivity).apply {
                     text = ph
                     textSize = 15f
-                    setBackgroundColor(Color.parseColor(if (chosen) "#D9D3C7" else "#1E2334"))
-                    setTextColor(Color.parseColor(if (chosen) "#14171f" else "#EEF0F8"))
+                    setBackgroundColor(Color.parseColor(if (chosen) "#B07A46" else "#FFFFFF"))
+                    setTextColor(Color.parseColor(if (chosen) "#FFFFFF" else "#2B2A31"))
                     setOnClickListener {
                         ChallengeLock.setPhrase(this@MainActivity, ph)
                         paintPhrases()
@@ -803,8 +780,8 @@ class MainActivity : Activity() {
         col.addView(EditText(this).apply {
             hint = "ابحث عن تطبيق…"
             textSize = 15f
-            setTextColor(Color.parseColor("#EEF0F8"))
-            setHintTextColor(Color.parseColor("#8b92a8"))
+            setTextColor(Color.parseColor("#2B2A31"))
+            setHintTextColor(Color.parseColor("#7B7468"))
             addTextChangedListener(object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
                     filter = s?.toString()?.trim() ?: ""
@@ -825,8 +802,8 @@ class MainActivity : Activity() {
         col.addView(Button(this).apply {
             text = "✓ تم — احفظ وارجع"
             textSize = 17f
-            setBackgroundColor(Color.parseColor("#D9D3C7"))
-            setTextColor(Color.parseColor("#14171f"))
+            setBackgroundColor(Color.parseColor("#B07A46"))
+            setTextColor(Color.parseColor("#FFFFFF"))
             setPadding(0, dp(14), 0, dp(14))
             setOnClickListener {
                 Prefs.setBlockedApps(this@MainActivity, selected)
@@ -844,12 +821,12 @@ class MainActivity : Activity() {
             text = "\nكل تغيير يُحفظ فوراً — الزر للتأكيد والرجوع فقط.\n\n" +
                    "ملاحظة: لا يقرأ التطبيق محتوى شاشتك إطلاقاً — يعرف فقط اسم التطبيق المفتوح."
             textSize = 12f
-            setTextColor(Color.parseColor("#8b92a8"))
+            setTextColor(Color.parseColor("#7B7468"))
             setPadding(0, dp(14), 0, 0)
         })
 
         return ScrollView(this).apply {
-            setBackgroundColor(Color.parseColor("#0A0C14"))
+            setBackgroundColor(Color.parseColor("#EFE9DD"))
             addView(col)
         }
     }
@@ -873,9 +850,9 @@ class MainActivity : Activity() {
         }
         countView.setTextColor(
             when {
-                n == 0 -> Color.parseColor("#8B92A8")
-                n > 15 -> Color.parseColor("#e88080")
-                else -> Color.parseColor("#93a9dc")
+                n == 0 -> Color.parseColor("#7B7468")
+                n > 15 -> Color.parseColor("#C0564E")
+                else -> Color.parseColor("#4A72A8")
             }
         )
     }
@@ -904,7 +881,7 @@ class MainActivity : Activity() {
                 text = pm.getApplicationLabel(app).toString()
                 textSize = 15f
                 setTextColor(
-                    if (selected.contains(pkg)) Color.parseColor("#F0EBE0") else Color.parseColor("#EEF0F8")
+                    if (selected.contains(pkg)) Color.parseColor("#8D5F33") else Color.parseColor("#2B2A31")
                 )
                 isChecked = selected.contains(pkg)
                 setOnCheckedChangeListener { _, checked ->
@@ -912,7 +889,7 @@ class MainActivity : Activity() {
                     save(quiet = true)
                     updateCount(justSaved = true)
                     setTextColor(
-                        if (checked) Color.parseColor("#F0EBE0") else Color.parseColor("#EEF0F8")
+                        if (checked) Color.parseColor("#8D5F33") else Color.parseColor("#2B2A31")
                     )
                 }
             })
@@ -923,17 +900,17 @@ class MainActivity : Activity() {
     private fun renderChallengeState(v: TextView) {
         if (!ChallengeLock.enabled(this)) {
             v.text = "نظام النقاط متوقّف"
-            v.setTextColor(Color.parseColor("#8b92a8"))
+            v.setTextColor(Color.parseColor("#7B7468"))
             return
         }
         val reward = "الجولة: ${ChallengeLock.reps(this)} ضغطة = ${Credit.rewardMinutes(this)} دقيقة"
         if (Credit.isEmpty(this)) {
             v.text = "🔒 رصيدك صفر — أتمّ جولة لتكسب\n$reward"
-            v.setTextColor(Color.parseColor("#e88080"))
+            v.setTextColor(Color.parseColor("#C0564E"))
         } else {
             val flow = if (Credit.isSpending(this)) "⏳ يُصرف الآن" else "⏸ متوقّف — لست في تطبيق محظور"
             v.text = "💎 رصيدك ${Credit.format(this)}  ·  $flow\n$reward"
-            v.setTextColor(Color.parseColor("#93a9dc"))
+            v.setTextColor(Color.parseColor("#4A72A8"))
         }
     }
 
@@ -945,7 +922,7 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         val on = isServiceEnabled()
         statusView.text = if (on) "✅ الخدمة مفعّلة — الحظر يعمل" else "⛔ الخدمة غير مفعّلة"
-        statusView.setTextColor(Color.parseColor(if (on) "#93a9dc" else "#e88080"))
+        statusView.setTextColor(Color.parseColor(if (on) "#4A72A8" else "#C0564E"))
 
         val t = PrayerLock.todayTimes(this)
         val sb = StringBuilder()

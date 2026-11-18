@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
-        <item name="android:colorBackground">#0A0C14</item>
-        <item name="android:textColorPrimary">#EEF0F8</item>
-        <item name="android:colorAccent">#93A9DC</item>
+        <item name="android:colorBackground">#EFE9DD</item>
+        <item name="android:textColorPrimary">#2B2A31</item>
+        <item name="android:colorAccent">#4A72A8</item>
     </style>
 
     <style name="LockTheme" parent="AppTheme">

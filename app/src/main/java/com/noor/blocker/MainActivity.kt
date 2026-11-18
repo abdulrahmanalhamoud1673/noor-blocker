@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "14.0"
+private const val APP_VERSION = "14.1"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -311,8 +311,9 @@ class MainActivity : Activity() {
 
     /** 0 = الأذكار · 1 = قفل الصلاة · 2 = لوحة التحكّم */
     private fun markTabs(which: Int) {
-        val on = Color.parseColor("#B07A46"); val off = Color.parseColor("#FFFFFF")
-        val onT = Color.parseColor("#FFFFFF"); val offT = Color.WHITE
+        // نصّ التبويب المُطفأ كان أبيض على أبيض — غير مرئيّ
+        val on = Color.parseColor("#8E5C2C"); val off = Color.parseColor("#FFFFFF")
+        val onT = Color.parseColor("#FFFFFF"); val offT = Color.parseColor("#2B2A31")
         listOf(tabWeb, tabBlock, tabAdmin).forEachIndexed { i, b ->
             b.setBackgroundColor(if (i == which) on else off)
             b.setTextColor(if (i == which) onT else offT)
@@ -461,7 +462,7 @@ class MainActivity : Activity() {
         }
 
         /* حالة الخدمة */
-        col.addView(header("١) تفعيل الخدمة"))
+        col.addView(header("١ · تشغيل نور"))
         statusView = TextView(this).apply {
             textSize = 15f
             setPadding(0, 0, 0, dp(9))
@@ -477,10 +478,8 @@ class MainActivity : Activity() {
         })
 
         /* ما الذي قد يُسكت الأذان */
-        col.addView(header("١·٥) جاهزية التنبيه"))
-        col.addView(body(
-            "الأذان يرنّ والهاتف نائم فقط إذا سُمح له بأمرين. اضغط الأحمر منهما."
-        ))
+        col.addView(header("٢ · الأذونات"))
+        col.addView(body("اضغط الأحمر منهما:"))
         val readyView = body("")
         col.addView(readyView)
 
@@ -516,14 +515,11 @@ class MainActivity : Activity() {
             }
         })
 
-        col.addView(body(
-            "بعض الهواتف (شاومي، أوبو، هواوي) تُغلق التطبيقات النائمة مهما فعلنا. " +
-            "ابحث فيها عن «التشغيل التلقائي» أو «Autostart» واسمح لنور."
-        ))
+        col.addView(body("وفي شاومي وأوبو: فعّل «التشغيل التلقائي» لنور."))
 
         /* تنبيه الأذان */
-        col.addView(header("٢) تنبيه الأذان"))
-        col.addView(body("ينبّهك بصوت واهتزاز عند دخول كل وقت، حتى لو كان التطبيق مغلقاً."))
+        col.addView(header("٣ · الأذان"))
+
         col.addView(CheckBox(this).apply {
             text = "فعّل تنبيه الأذان"
             textSize = 15.5f
@@ -556,7 +552,7 @@ class MainActivity : Activity() {
             }
         })
 
-        col.addView(body("الأذان يخرج على صوت المنبّه، فيُسمع حتى لو كان الهاتف صامتاً."))
+        col.addView(body("يُسمع ولو كان الهاتف صامتاً."))
 
         /* زرّان للتجربة والإيقاف — لا تنتظر وقت الصلاة لتعرف أنه يعمل */
         col.addView(LinearLayout(this).apply {
@@ -574,7 +570,7 @@ class MainActivity : Activity() {
         })
 
         /* أوقات اليوم */
-        col.addView(header("٣) أوقات الصلاة اليوم"))
+        col.addView(header("٤ · أوقات اليوم"))
         timesView = TextView(this).apply {
             textSize = 14.5f
             setTextColor(Color.parseColor("#2B2A31"))
@@ -583,12 +579,8 @@ class MainActivity : Activity() {
         col.addView(timesView)
 
         /* مدة القفل */
-        col.addView(header("٤) مدة قفل الهاتف بعد الأذان"))
-        col.addView(body(
-            "عند دخول الوقت يُقفل الهاتف بالكامل — كل التطبيقات والشاشة " +
-            "الرئيسية — ولا يوجد زرّ لفكّه. يُفتح وحده عند انتهاء المدة.\n" +
-            "الاتصال والطوارئ والإعدادات تبقى متاحة دائماً."
-        ))
+        col.addView(header("٥ · مدة القفل"))
+        col.addView(body("يُقفل الهاتف كاملاً ويُفتح وحده. الاتصال والطوارئ متاحة."))
         /* قفل الشاشة القسريّ */
         val lockState = body("")
         fun paintLockState() {
@@ -600,7 +592,7 @@ class MainActivity : Activity() {
                 lockState.setTextColor(Color.parseColor("#C0564E"))
             }
         }
-        col.addView(body("اقفل الشاشة نفسها عند الأذان، لا مجرّد منع التطبيقات."))
+
         col.addView(lockState)
         paintLockState()
         col.addView(Button(this).apply {
@@ -619,11 +611,7 @@ class MainActivity : Activity() {
                 }
             }
         })
-        col.addView(body(
-            "ملاحظة صريحة: لا يستطيع أي تطبيق أن يمنعك من إدخال رمز قفل هاتفك — " +
-            "شاشة القفل ملك النظام. لكن حين تُدخل الرمز تجد شاشة نور فوق كل شيء، " +
-            "وأي محاولة استخدام تُعيد إطفاء الشاشة. ومكالمات الطوارئ تبقى متاحة."
-        ))
+        col.addView(body("تفتح الهاتف فتجد شاشة نور فوق كل شيء."))
         col.addView(body(
             "قبل حذف التطبيق: ألغِ هذه الصلاحية من هنا أولاً، وإلا منعك النظام من حذفه."
         ))
@@ -645,10 +633,9 @@ class MainActivity : Activity() {
         })
 
         /* نظام النقاط */
-        col.addView(header("٥) نظام النقاط — اكسب وقتك"))
-        col.addView(body("الضغطات مع الذكر تشتري لك دقائق استخدام."))
-        col.addView(body("والدقائق لا تُصرف إلا وأنت داخل التطبيقات المحظورة: تخرج من إنستغرام فيتوقّف العدّاد ويبقى رصيدك كما هو، وتعود فيُستأنف."))
-        col.addView(body("ينفد الرصيد فتُقفل حتى تكسب غيره."))
+        col.addView(header("٦ · النقاط"))
+        col.addView(body("الضغطات تشتري دقائق."))
+        col.addView(body("ولا تُصرف إلا وأنت داخل التطبيقات المحظورة."))
 
         val chState = body("")
         col.addView(CheckBox(this).apply {
@@ -739,11 +726,8 @@ class MainActivity : Activity() {
         renderChallengeState(chState)
 
         /* اختيار التطبيقات */
-        col.addView(header("٦) تطبيقات تحدّي الاستغفار"))
-        col.addView(body(
-            "هذه القائمة لتحدّي الاستغفار وحده.\n" +
-            "قفل الصلاة لم يعد يعتمد عليها — فهو يقفل الهاتف كلّه."
-        ))
+        col.addView(header("٧ · التطبيقات المحظورة"))
+        col.addView(body("لتحدّي الاستغفار وحده — قفل الصلاة يقفل الهاتف كلّه."))
 
         countView = TextView(this).apply {
             textSize = 15f

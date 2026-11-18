@@ -45,23 +45,23 @@ class AdminPanel(private val act: Activity) {
 
     private fun title(t: String) = TextView(act).apply {
         text = t; textSize = 17f
-        setTextColor(Color.parseColor("#D4AF37"))
+        setTextColor(Color.parseColor("#D9D3C7"))
         setPadding(0, dp(20), 0, dp(9))
     }
 
     private fun card() = TextView(act).apply {
         textSize = 14f
-        setTextColor(Color.parseColor("#EAF5F0"))
+        setTextColor(Color.parseColor("#EEF0F8"))
         setLineSpacing(0f, 1.55f)
         setPadding(dp(14), dp(13), dp(14), dp(13))
-        setBackgroundColor(Color.parseColor("#0A3227"))
+        setBackgroundColor(Color.parseColor("#1E2334"))
     }
 
     private fun action(label: String, color: String, onTap: () -> Unit) = Button(act).apply {
         text = label
         textSize = 13.5f
         setBackgroundColor(Color.parseColor(color))
-        setTextColor(Color.parseColor("#16130A"))
+        setTextColor(Color.parseColor("#14171F"))
         setOnClickListener { onTap() }
     }
 
@@ -93,19 +93,19 @@ class AdminPanel(private val act: Activity) {
 
         val row1 = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
         val cell = { LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f) }
-        row1.addView(action("+ ١٥ دقيقة", "#10B981") { grant(15) }, cell())
-        row1.addView(action("+ ٦٠ دقيقة", "#10B981") { grant(60) }, cell())
+        row1.addView(action("+ ١٥ دقيقة", "#93A9DC") { grant(15) }, cell())
+        row1.addView(action("+ ٦٠ دقيقة", "#93A9DC") { grant(60) }, cell())
         col.addView(row1, wide)
 
         val row2 = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
-        row2.addView(action("صفّر الرصيد", "#D4AF37") {
+        row2.addView(action("صفّر الرصيد", "#D9D3C7") {
             confirm("تصفير الرصيد", "سيصير رصيدك صفراً وتُقفل التطبيقات فوراً.") {
                 Credit.grant(act, -99999)
                 EventLog.add(act, EventLog.ADMIN, "صفّرتَ رصيدك يدوياً")
                 renderAll(); toast("صُفّر الرصيد")
             }
         }, cell())
-        row2.addView(action("امسح السجلّ", "#D4AF37") {
+        row2.addView(action("امسح السجلّ", "#D9D3C7") {
             confirm("مسح السجلّ", "سيُحذف سجلّ الأحداث. الأرقام تبقى.") {
                 EventLog.clear(act); renderAll(); toast("مُسح السجلّ")
             }
@@ -126,7 +126,7 @@ class AdminPanel(private val act: Activity) {
         col.addView(TextView(act).apply {
             text = "آخر ٣٠٠ حدث — الأحدث أولاً"
             textSize = 12.5f
-            setTextColor(Color.parseColor("#6E8F82"))
+            setTextColor(Color.parseColor("#767E94"))
             setPadding(0, 0, 0, dp(8))
         })
         logBox = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
@@ -134,7 +134,7 @@ class AdminPanel(private val act: Activity) {
 
         renderAll()
         return ScrollView(act).apply {
-            setBackgroundColor(Color.parseColor("#04150F"))
+            setBackgroundColor(Color.parseColor("#0A0C14"))
             addView(col)
         }
     }
@@ -233,9 +233,9 @@ class AdminPanel(private val act: Activity) {
             logBox.addView(TextView(act).apply {
                 text = "لا أحداث بعد."
                 textSize = 13.5f
-                setTextColor(Color.parseColor("#6E8F82"))
+                setTextColor(Color.parseColor("#767E94"))
                 setPadding(dp(14), dp(12), dp(14), dp(12))
-                setBackgroundColor(Color.parseColor("#0A3227"))
+                setBackgroundColor(Color.parseColor("#1E2334"))
             })
             return
         }
@@ -253,11 +253,11 @@ class AdminPanel(private val act: Activity) {
     }
 
     private fun colorFor(icon: String) = when (icon) {
-        EventLog.EARN -> "#10B981"
+        EventLog.EARN -> "#93A9DC"
         EventLog.BLOCK -> "#EF4444"
-        EventLog.ADMIN -> "#F0D98A"
-        EventLog.PRAYER, EventLog.ADHAN -> "#D4AF37"
-        else -> "#9DBDB0"
+        EventLog.ADMIN -> "#F0EBE0"
+        EventLog.PRAYER, EventLog.ADHAN -> "#D9D3C7"
+        else -> "#8B92A8"
     }
 
     private fun label(pkg: String): String = try {

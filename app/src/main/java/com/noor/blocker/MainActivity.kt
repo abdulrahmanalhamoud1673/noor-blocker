@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "13.0"
+private const val APP_VERSION = "13.1"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -135,7 +135,7 @@ class MainActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#04150F"))
+            setBackgroundColor(Color.parseColor("#0A0C14"))
         }
 
         root.addView(buildBanner())
@@ -284,8 +284,8 @@ class MainActivity : Activity() {
         banner = TextView(this).apply {
             textSize = 15f
             gravity = Gravity.CENTER
-            setTextColor(Color.parseColor("#F0D98A"))
-            setBackgroundColor(Color.parseColor("#0A3227"))
+            setTextColor(Color.parseColor("#F0EBE0"))
+            setBackgroundColor(Color.parseColor("#1E2334"))
             setPadding(dp(12), dp(12), dp(12), dp(12))
         }
         updateBanner()
@@ -310,7 +310,7 @@ class MainActivity : Activity() {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(10), dp(10), dp(10), dp(10))
-            setBackgroundColor(Color.parseColor("#06231C"))
+            setBackgroundColor(Color.parseColor("#10131F"))
         }
         val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
 
@@ -334,7 +334,7 @@ class MainActivity : Activity() {
 
     /** 0 = الأذكار · 1 = قفل الصلاة · 2 = لوحة التحكّم */
     private fun markTabs(which: Int) {
-        val on = Color.parseColor("#D4AF37"); val off = Color.parseColor("#0A3227")
+        val on = Color.parseColor("#D9D3C7"); val off = Color.parseColor("#1E2334")
         val onT = Color.parseColor("#14171f"); val offT = Color.WHITE
         listOf(tabWeb, tabBlock, tabAdmin).forEachIndexed { i, b ->
             b.setBackgroundColor(if (i == which) on else off)
@@ -466,14 +466,14 @@ class MainActivity : Activity() {
     private fun header(text: String) = TextView(this).apply {
         this.text = text
         textSize = 17f
-        setTextColor(Color.parseColor("#D4AF37"))
+        setTextColor(Color.parseColor("#D9D3C7"))
         setPadding(0, dp(20), 0, dp(9))
     }
 
     private fun body(text: String) = TextView(this).apply {
         this.text = text
         textSize = 13.5f
-        setTextColor(Color.parseColor("#9DBDB0"))
+        setTextColor(Color.parseColor("#8B92A8"))
         setPadding(0, 0, 0, dp(8))
     }
 
@@ -550,7 +550,7 @@ class MainActivity : Activity() {
         col.addView(CheckBox(this).apply {
             text = "فعّل تنبيه الأذان"
             textSize = 15.5f
-            setTextColor(Color.parseColor("#EAF5F0"))
+            setTextColor(Color.parseColor("#EEF0F8"))
             isChecked = Prefs.notifyEnabled(this@MainActivity)
             setOnCheckedChangeListener { _, checked ->
                 Prefs.setNotifyEnabled(this@MainActivity, checked)
@@ -566,7 +566,7 @@ class MainActivity : Activity() {
         col.addView(CheckBox(this).apply {
             text = "ارفع الأذان بصوت مؤذّن (بدل نغمة قصيرة)"
             textSize = 15.5f
-            setTextColor(Color.parseColor("#EAF5F0"))
+            setTextColor(Color.parseColor("#EEF0F8"))
             isChecked = Prefs.adhanSound(this@MainActivity)
             setOnCheckedChangeListener { _, checked ->
                 Prefs.setAdhanSound(this@MainActivity, checked)
@@ -600,7 +600,7 @@ class MainActivity : Activity() {
         col.addView(header("٣) أوقات الصلاة اليوم"))
         timesView = TextView(this).apply {
             textSize = 14.5f
-            setTextColor(Color.parseColor("#EAF5F0"))
+            setTextColor(Color.parseColor("#EEF0F8"))
             setLineSpacing(0f, 1.45f)
         }
         col.addView(timesView)
@@ -677,7 +677,7 @@ class MainActivity : Activity() {
         col.addView(CheckBox(this).apply {
             text = "فعّل نظام النقاط"
             textSize = 15.5f
-            setTextColor(Color.parseColor("#EAF5F0"))
+            setTextColor(Color.parseColor("#EEF0F8"))
             isChecked = ChallengeLock.enabled(this@MainActivity)
             setOnCheckedChangeListener { _, on ->
                 ChallengeLock.setEnabled(this@MainActivity, on)
@@ -738,8 +738,8 @@ class MainActivity : Activity() {
                 phraseBox.addView(Button(this@MainActivity).apply {
                     text = ph
                     textSize = 15f
-                    setBackgroundColor(Color.parseColor(if (chosen) "#D4AF37" else "#0A3227"))
-                    setTextColor(Color.parseColor(if (chosen) "#14171f" else "#EAF5F0"))
+                    setBackgroundColor(Color.parseColor(if (chosen) "#D9D3C7" else "#1E2334"))
+                    setTextColor(Color.parseColor(if (chosen) "#14171f" else "#EEF0F8"))
                     setOnClickListener {
                         ChallengeLock.setPhrase(this@MainActivity, ph)
                         paintPhrases()
@@ -803,7 +803,7 @@ class MainActivity : Activity() {
         col.addView(EditText(this).apply {
             hint = "ابحث عن تطبيق…"
             textSize = 15f
-            setTextColor(Color.parseColor("#EAF5F0"))
+            setTextColor(Color.parseColor("#EEF0F8"))
             setHintTextColor(Color.parseColor("#8b92a8"))
             addTextChangedListener(object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
@@ -825,7 +825,7 @@ class MainActivity : Activity() {
         col.addView(Button(this).apply {
             text = "✓ تم — احفظ وارجع"
             textSize = 17f
-            setBackgroundColor(Color.parseColor("#D4AF37"))
+            setBackgroundColor(Color.parseColor("#D9D3C7"))
             setTextColor(Color.parseColor("#14171f"))
             setPadding(0, dp(14), 0, dp(14))
             setOnClickListener {
@@ -849,7 +849,7 @@ class MainActivity : Activity() {
         })
 
         return ScrollView(this).apply {
-            setBackgroundColor(Color.parseColor("#04150F"))
+            setBackgroundColor(Color.parseColor("#0A0C14"))
             addView(col)
         }
     }
@@ -873,7 +873,7 @@ class MainActivity : Activity() {
         }
         countView.setTextColor(
             when {
-                n == 0 -> Color.parseColor("#9DBDB0")
+                n == 0 -> Color.parseColor("#8B92A8")
                 n > 15 -> Color.parseColor("#e88080")
                 else -> Color.parseColor("#93a9dc")
             }
@@ -904,7 +904,7 @@ class MainActivity : Activity() {
                 text = pm.getApplicationLabel(app).toString()
                 textSize = 15f
                 setTextColor(
-                    if (selected.contains(pkg)) Color.parseColor("#F0D98A") else Color.parseColor("#EAF5F0")
+                    if (selected.contains(pkg)) Color.parseColor("#F0EBE0") else Color.parseColor("#EEF0F8")
                 )
                 isChecked = selected.contains(pkg)
                 setOnCheckedChangeListener { _, checked ->
@@ -912,7 +912,7 @@ class MainActivity : Activity() {
                     save(quiet = true)
                     updateCount(justSaved = true)
                     setTextColor(
-                        if (checked) Color.parseColor("#F0D98A") else Color.parseColor("#EAF5F0")
+                        if (checked) Color.parseColor("#F0EBE0") else Color.parseColor("#EEF0F8")
                     )
                 }
             })

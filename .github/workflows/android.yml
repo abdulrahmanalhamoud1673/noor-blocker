@@ -28,24 +28,23 @@ jobs:
         id: ks
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: noor-signing-key-v1
+          path: app/noor-signing.jks
+          key: noor-signing-jks-v2
 
       - name: إنشاء المفتاح إن لم يوجد
         if: steps.ks.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/.android
           keytool -genkeypair -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android -keypass android \
+            -keystore app/noor-signing.jks \
+            -alias noor \
+            -storepass noorsign -keypass noorsign \
             -keyalg RSA -keysize 2048 -validity 10950 \
             -dname "CN=Noor, OU=Personal, O=Noor, L=Amman, S=Amman, C=JO"
 
       - name: بصمة التوقيع
         run: |
-          keytool -list -v -keystore ~/.android/debug.keystore \
-            -storepass android -alias androiddebugkey | grep "SHA-256" || true
+          keytool -list -v -keystore app/noor-signing.jks \
+            -storepass noorsign -alias noor | grep -i "SHA256" || true
 
       - name: تجهيز Gradle
         uses: gradle/actions/setup-gradle@v4

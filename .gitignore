@@ -8,3 +8,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# مفتاح التوقيع — لا يُرفع إلى مستودعٍ عامّ
+*.jks
+*.keystore

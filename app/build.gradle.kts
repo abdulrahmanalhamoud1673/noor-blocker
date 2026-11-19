@@ -11,14 +11,34 @@ android {
         applicationId = "com.noor.blocker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 26
-        versionName = "15.1"
+        versionCode = 27
+        versionName = "15.2"
+    }
+
+    // توقيعٌ ثابت بملفٍّ نملك مساره.
+    //
+    // مفتاح التصحيح الافتراضي يُولَّد من جديد على كل خادم بناء،
+    // وأندرويد يرفض تحديث تطبيقٍ بمفتاحٍ مختلف — فكان التثبيت
+    // يفشل ويبقى الهاتف على نسخةٍ قديمة.
+    val noorKey = file("noor-signing.jks")
+    signingConfigs {
+        if (noorKey.exists()) {
+            create("noor") {
+                storeFile = noorKey
+                storePassword = "noorsign"
+                keyAlias = "noor"
+                keyPassword = "noorsign"
+            }
+        }
     }
 
     buildTypes {
+        val signer = if (noorKey.exists()) signingConfigs.getByName("noor")
+                     else signingConfigs.getByName("debug")
+        debug { signingConfig = signer }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signer
         }
     }
 

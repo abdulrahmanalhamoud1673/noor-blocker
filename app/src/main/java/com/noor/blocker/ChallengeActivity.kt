@@ -1,4 +1,5 @@
 package com.noor.blocker
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -13,8 +14,6 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -25,24 +24,18 @@ import android.widget.TextView
 import android.widget.Toast
 
 /**
- * تحدّي الاستغفار — يعدّ الضغطات ويسمع الذكر.
+ * تحدّي الاستغفار — يعدّ الضغطات بحسّاس القرب.
  *
- * كان يعتمد على الكاميرا لرؤية الحركة وعلى تعرّف الكلام ليقبل الذكر،
- * فكان يفشل في الاثنين: الكاميرا تحتاج ضوءاً وإسناداً للهاتف وجسداً
- * كاملاً في الإطار، والتعرّف كان يُطلَق مرّةً لكل ضغطة فيضيع الكلام
- * في فجوة التشغيل.
+ * تضع الهاتف أرضاً تحت صدرك، فكلّما نزلتَ غطّيتَه وكلّما ارتفعتَ
+ * انكشف. يعمل في العتمة، بلا كاميرا ولا نموذج — وهو ما تفعله
+ * تطبيقات الضغط الحقيقية.
  *
- * الآن: **حسّاس القرب** يعدّ الضغطات — تضع الهاتف أرضاً تحت صدرك،
- * فكلّما نزلتَ غطّيتَه وكلّما ارتفعتَ انكشف. يعمل في العتمة، بلا
- * كاميرا ولا نموذج، وهو ما تفعله تطبيقات الضغط الحقيقية.
- *
- * والميكروفون يبقى مفتوحاً طوال الجولة لا ضغطةً ضغطة، ويُظهر لك
- * شريطاً حيّاً يتحرّك مع صوتك — فترى بعينك أنه يسمعك. وهو **لا
- * يمنع** الضغطة من العدّ: الذكر لسانُك ونيّتُك، لا شهادةَ جهاز.
+ * ولا ميكروفون: كان يُنصت للذكر ثمّ أُلغي شرطُ النطق، فلم يبقَ له
+ * عمل. وحذفه أسقط إذن تسجيل الصوت من التطبيق كلّه. والذكر لسانُك
+ * ونيّتُك، لا شهادةَ جهاز.
  */
 class ChallengeActivity : Activity(), SensorEventListener {
 
-    private val handler = Handler(Looper.getMainLooper())
     private var sensors: SensorManager? = null
     private var proximity: Sensor? = null
 
@@ -53,23 +46,28 @@ class ChallengeActivity : Activity(), SensorEventListener {
 
     private lateinit var ring: RingView
     private lateinit var countView: TextView
-    private lateinit var phraseView: TextView
     private lateinit var hintView: TextView
 
-    /* حلقة تمتلئ مع الضغطات */
+    /** حلقة تمتلئ مع الضغطات */
     class RingView(ctx: Context) : View(ctx) {
         var progress = 0f
         private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; color = Color.parseColor("#E2DACB"); strokeCap = Paint.Cap.ROUND
+            style = Paint.Style.STROKE
+            color = Color.parseColor("#E2DACB")
+            strokeCap = Paint.Cap.ROUND
         }
         private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; color = Color.parseColor("#B07A46"); strokeCap = Paint.Cap.ROUND
+            style = Paint.Style.STROKE
+            color = Color.parseColor("#8E5C2C")
+            strokeCap = Paint.Cap.ROUND
         }
         private val box = RectF()
+
         override fun onDraw(c: Canvas) {
             val w = width.toFloat()
-            val s = w * 0.06f
-            track.strokeWidth = s; arc.strokeWidth = s
+            val s = w * 0.055f
+            track.strokeWidth = s
+            arc.strokeWidth = s
             val pad = s / 2 + w * 0.02f
             box.set(pad, pad, w - pad, height - pad)
             c.drawArc(box, 0f, 360f, false, track)
@@ -77,24 +75,17 @@ class ChallengeActivity : Activity(), SensorEventListener {
         }
     }
 
-    /* شريط يتحرّك مع صوتك — دليلٌ مرئي أن الميكروفون يسمع */
-        var level = 0f
-        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        override fun onDraw(c: Canvas) {
-            val h = height.toFloat()
-            p.color = Color.parseColor("#F1ECE2")
-            c.drawRoundRect(RectF(0f, 0f, width.toFloat(), h), h / 2, h / 2, p)
-            p.color = Color.parseColor("#4A72A8")
-            c.drawRoundRect(RectF(0f, 0f, width * level.coerceIn(0f, 1f), h), h / 2, h / 2, p)
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = Color.parseColor("#F7F3EC")
+            window.statusBarColor = Color.parseColor("#FBF8F2")
             window.navigationBarColor = Color.parseColor("#EFE9DD")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         }
 
         target = ChallengeLock.reps(this)
@@ -104,21 +95,20 @@ class ChallengeActivity : Activity(), SensorEventListener {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(28), dp(24), dp(28), dp(24))
+            setPadding(dp(30), dp(26), dp(30), dp(26))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(Color.parseColor("#F7F3EC"), Color.parseColor("#EFE9DD"))
+                intArrayOf(Color.parseColor("#FBF8F2"), Color.parseColor("#EFE9DD"))
             )
         }
 
-        phraseView = TextView(this).apply {
+        root.addView(TextView(this).apply {
             text = ChallengeLock.phrase(this@ChallengeActivity)
-            textSize = 27f
-            setTextColor(Color.parseColor("#B07A46"))
+            textSize = 26f
+            setTextColor(Color.parseColor("#8E5C2C"))
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(26))
-        }
-        root.addView(phraseView)
+        })
 
         ring = RingView(this)
         countView = TextView(this).apply {
@@ -137,17 +127,9 @@ class ChallengeActivity : Activity(), SensorEventListener {
             textSize = 14.5f
             setTextColor(Color.parseColor("#7B7468"))
             gravity = Gravity.CENTER
-            setPadding(0, dp(22), 0, dp(20))
+            setPadding(0, dp(24), 0, 0)
         }
         root.addView(hintView)
-
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(8)))
-
-            textSize = 12.5f
-            setTextColor(Color.parseColor("#9A9183"))
-            gravity = Gravity.CENTER
-            setPadding(0, dp(9), 0, 0)
-        }
 
         setContentView(root)
 
@@ -155,13 +137,11 @@ class ChallengeActivity : Activity(), SensorEventListener {
         proximity = sensors?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
 
         if (proximity == null) {
-            // لا حسّاس قرب: العدّ باللمس، والصدق على صاحبه
-            hintView.text = "لا حسّاس قرب في هاتفك — المس الشاشة مع كل ضغطة"
+            hintView.text = "لا حسّاس قرب — المس الشاشة مع كل ضغطة"
             root.setOnClickListener { rep() }
         } else {
-            hintView.text = "ضع الهاتف أرضاً تحت صدرك وابدأ"
+            hintView.text = "ضع الهاتف أرضاً تحت صدرك"
         }
-
         render()
     }
 
@@ -177,8 +157,8 @@ class ChallengeActivity : Activity(), SensorEventListener {
             coveredAt = System.currentTimeMillis()
         } else if (!near && covered) {
             covered = false
-            // نزولٌ ثمّ صعود — ونشترط أن يبقى قريباً لحظةً كي لا
-            // تُحسب رفرفةُ يدٍ عابرة ضغطةً
+            // نزولٌ ثمّ صعود، ويبقى قريباً لحظةً كي لا تُحسب
+            // رفرفةُ يدٍ عابرة ضغطةً
             if (System.currentTimeMillis() - coveredAt in 120..6000) rep()
         }
     }
@@ -219,7 +199,6 @@ class ChallengeActivity : Activity(), SensorEventListener {
         finish()
     }
 
-    /* ─────────── السمع ─────────── */
     /* ─────────── دورة الحياة ─────────── */
 
     override fun onResume() {
@@ -230,11 +209,6 @@ class ChallengeActivity : Activity(), SensorEventListener {
     override fun onPause() {
         super.onPause()
         sensors?.unregisterListener(this)
-    }
-
-    override fun onDestroy() {
-        handler.removeCallbacksAndMessages(null)
-        super.onDestroy()
     }
 
     /** لا هروب من التحدّي بزرّ الرجوع */

@@ -613,6 +613,60 @@ class MainActivity : Activity() {
                 })
             }
     }
+    /**
+     * نسأل عمّا يُفتح بأيقونة لا عن كل ما هو مثبّت.
+     *
+     * getInstalledApplications يحتاج QUERY_ALL_PACKAGES، وجوجل بلاي
+     * تقصره على أنواعٍ لسنا منها. وسؤال «أرني ما له أيقونة» يعطي
+     * القائمة نفسها — فقد كنّا نُسقط ما عداها أصلاً.
+     */
+    private fun loadApps() {
+        val pm = packageManager
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        allApps = pm.queryIntentActivities(launcher, 0)
+            .mapNotNull { it.activityInfo?.applicationInfo }
+            .distinctBy { it.packageName }
+            .filter { it.packageName != packageName }
+            .sortedBy { pm.getApplicationLabel(it).toString() }
+    }
+
+    /** ما اخترته وحده — قائمةٌ قصيرة بإمكان حذف كلٍّ منها */
+    private fun renderChosen() {
+        if (!::appsBox.isInitialized) return
+        appsBox.removeAllViews()
+        val pm = packageManager
+        if (selected.isEmpty()) {
+            appsBox.addView(hint("لم تختر شيئاً بعد."))
+            return
+        }
+        selected.sorted().forEach { pkg ->
+            val name = try {
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            } catch (e: Exception) { pkg }
+            appsBox.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), dp(9), dp(10), dp(9))
+                addView(TextView(this@MainActivity).apply {
+                    text = name
+                    textSize = 15f
+                    setTextColor(Color.parseColor("#2B2A31"))
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                addView(TextView(this@MainActivity).apply {
+                    text = "✕"
+                    textSize = 15f
+                    setTextColor(Color.parseColor("#C0564E"))
+                    setPadding(dp(8), 0, dp(8), 0)
+                    setOnClickListener {
+                        selected.remove(pkg)
+                        Prefs.setBlockedApps(this@MainActivity, selected)
+                        renderChosen()
+                    }
+                })
+            })
+        }
+    }
+
     private fun refreshStatus() {
         val on = isServiceEnabled()
         statusView.text = if (on) "✅ الخدمة مفعّلة — الحظر يعمل" else "⛔ الخدمة غير مفعّلة"

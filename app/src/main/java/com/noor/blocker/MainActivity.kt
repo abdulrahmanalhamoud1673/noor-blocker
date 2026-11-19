@@ -214,9 +214,6 @@ class MainActivity : Activity() {
             text = "قفل الصلاة"
             setOnClickListener { showBlocker() }
         }
-            text = "لوحة التحكّم"
-            setOnClickListener { showAdmin() }
-        }
         bar.addView(tabWeb, lp)
         bar.addView(tabBlock, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         return bar
@@ -227,6 +224,7 @@ class MainActivity : Activity() {
         // نصّ التبويب المُطفأ كان أبيض على أبيض — غير مرئيّ
         val on = Color.parseColor("#8E5C2C"); val off = Color.parseColor("#FFFFFF")
         val onT = Color.parseColor("#FFFFFF"); val offT = Color.parseColor("#2B2A31")
+        listOf(tabWeb, tabBlock).forEachIndexed { i, b ->
             b.setBackgroundColor(if (i == which) on else off)
             b.setTextColor(if (i == which) onT else offT)
             b.textSize = 13f

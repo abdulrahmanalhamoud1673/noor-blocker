@@ -19,6 +19,34 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # ── توقيع ثابت ──
+      # كل بناءٍ كان يولّد مفتاح توقيع جديداً، وأندرويد يرفض تحديث
+      # تطبيقٍ بمفتاحٍ مختلف — فكان التثبيت يفشل بصمت وتبقى النسخة
+      # القديمة على الهاتف. نحفظ المفتاح في ذاكرة GitHub المؤقتة
+      # بمفتاحٍ ثابت، فيبقى التوقيع واحداً عبر كل البناءات.
+      - name: استرجاع مفتاح التوقيع
+        id: ks
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: noor-signing-key-v1
+
+      - name: إنشاء المفتاح إن لم يوجد
+        if: steps.ks.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10950 \
+            -dname "CN=Noor, OU=Personal, O=Noor, L=Amman, S=Amman, C=JO"
+
+      - name: بصمة التوقيع
+        run: |
+          keytool -list -v -keystore ~/.android/debug.keystore \
+            -storepass android -alias androiddebugkey | grep "SHA-256" || true
+
       - name: تجهيز Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

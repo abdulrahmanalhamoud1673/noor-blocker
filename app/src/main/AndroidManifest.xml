@@ -2,11 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- لقراءة قائمة التطبيقات المثبتة كي تختار منها -->
-    <uses-permission
-        android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
-
     <!-- لعرض الأذكار والقرآن داخل التطبيق -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -112,6 +107,12 @@
 
     </application>
     <queries>
+        <!-- ما يُفتح بأيقونة من الشاشة الرئيسية: هذا كلّ ما نحتاجه
+             لعرض قائمة الاختيار، وهو مسموح بلا QUERY_ALL_PACKAGES -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>

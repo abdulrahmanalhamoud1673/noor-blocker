@@ -32,7 +32,7 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "14.1"
+private const val APP_VERSION = "15.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
@@ -815,11 +815,20 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * نسأل عمّا يُفتح بأيقونة لا عن كل ما هو مثبّت.
+     *
+     * getInstalledApplications يحتاج QUERY_ALL_PACKAGES، وجوجل بلاي
+     * تقصره على أنواعٍ لسنا منها. وسؤال «أرني ما له أيقونة» يعطينا
+     * القائمة نفسها التي كنّا نعرضها — فقد كنّا نُسقط ما عداها أصلاً.
+     */
     private fun loadApps() {
         val pm = packageManager
-        allApps = pm.getInstalledApplications(0)
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        allApps = pm.queryIntentActivities(launcher, 0)
+            .mapNotNull { it.activityInfo?.applicationInfo }
+            .distinctBy { it.packageName }
             .filter { it.packageName != packageName }
-            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
             .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 || selected.contains(it.packageName) }
             .sortedBy { pm.getApplicationLabel(it).toString() }
     }

@@ -32,21 +32,16 @@ import android.widget.Toast
 const val NOOR_WEB = "https://abdulrahmanalhamoud1673.github.io/noor-adhkar/"
 
 /** يُستخدم لمسح ذاكرة الويب مرة واحدة بعد كل تحديث */
-private const val APP_VERSION = "15.2"
+private const val APP_VERSION = "16.0"
 
 /** رمز طلب أذونات الوسائط (كاميرا / ميكروفون) من داخل الصفحة */
 private const val REQ_MEDIA = 11
 
 /**
  * جسر بين صفحة الأذكار ومحرّك التطبيق.
- * يستدعيه مدرّب الصلاة عند التسليم فيفكّ قفل هذه الصلاة —
- * وهذا هو الإثبات الحقيقي الوحيد: أن تصلّي فعلاً أمام الكاميرا.
+ * لم يبقَ منه إلا إضافة الرصيد عند إتمام تحدٍّ من صفحة الويب.
  */
-class NoorBridge(
-    private val ctx: android.content.Context,
-    private val onListen: (String) -> Unit
-) {
-    /** أتمّ تحدّي الاستغفار — يُضاف الرصيد */
+class NoorBridge(private val ctx: android.content.Context) {
     @android.webkit.JavascriptInterface
     fun challengeCompleted() {
         val mins = Credit.award(ctx)
@@ -56,12 +51,6 @@ class NoorBridge(
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             Toast.makeText(ctx, "أحسنت — كسبتَ $mins دقيقة · رصيدك $total", Toast.LENGTH_LONG).show()
         }
-    }
-
-    /** يطلب من أندرويد الإنصات والتحقق من نطق الذكر */
-    @android.webkit.JavascriptInterface
-    fun listenForDhikr(phrase: String) {
-        android.os.Handler(android.os.Looper.getMainLooper()).post { onListen(phrase) }
     }
 }
 
@@ -85,17 +74,14 @@ class MainActivity : Activity() {
     private lateinit var content: FrameLayout
     private lateinit var tabWeb: Button
     private lateinit var tabBlock: Button
-    private lateinit var tabAdmin: Button
 
     private var webView: WebView? = null
     private var blockerView: ScrollView? = null
-    private var adminPanel: AdminPanel? = null
-    private var adminView: ScrollView? = null
 
     private lateinit var statusView: TextView
     private lateinit var timesView: TextView
-    private lateinit var countView: TextView
     private lateinit var appsBox: LinearLayout
+    private lateinit var suggestBox: LinearLayout
 
     private val selected = HashSet<String>()
     private var allApps: List<ApplicationInfo> = emptyList()
@@ -174,76 +160,6 @@ class MainActivity : Activity() {
     private fun openChallenge() {
         startActivity(Intent(this, ChallengeActivity::class.java))
     }
-
-    /**
-     * يُنصت ويتحقّق من نطق الذكر.
-     * التعرّف على الكلام لا يعمل داخل WebView، فنستخدم محرّك أندرويد
-     * الأصلي ونُعيد النتيجة إلى الصفحة عبر window.__noorSpeech.
-     */
-    private var recognizer: android.speech.SpeechRecognizer? = null
-
-    private fun listenForDhikr(phrase: String) {
-        if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this)) {
-            replySpeech(false)
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 3)
-            replySpeech(false)
-            return
-        }
-
-        recognizer?.destroy()
-        recognizer = android.speech.SpeechRecognizer.createSpeechRecognizer(this).apply {
-            setRecognitionListener(object : android.speech.RecognitionListener {
-                override fun onResults(results: Bundle?) {
-                    val said = results
-                        ?.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION)
-                        ?.joinToString(" ") ?: ""
-                    replySpeech(matchesDhikr(said, phrase))
-                }
-                override fun onError(error: Int) = replySpeech(false)
-                override fun onReadyForSpeech(p: Bundle?) {}
-                override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(v: Float) {}
-                override fun onBufferReceived(b: ByteArray?) {}
-                override fun onEndOfSpeech() {}
-                override fun onPartialResults(p: Bundle?) {}
-                override fun onEvent(t: Int, p: Bundle?) {}
-            })
-        }
-
-        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                     android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "ar")
-            putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-        }
-        try { recognizer?.startListening(intent) } catch (e: Exception) { replySpeech(false) }
-    }
-
-    /** مقارنة متسامحة: نُجرّد التشكيل ونقبل تطابق أغلب الكلمات */
-    private fun matchesDhikr(said: String, phrase: String): Boolean {
-        fun strip(s: String) = s
-            .replace(Regex("[\\u064B-\\u0652\\u0670\\u0640]"), "")
-            .replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا').replace('ٱ', 'ا')
-            .replace('ة', 'ه').replace('ى', 'ي')
-            .trim()
-
-        val heard = strip(said)
-        val want = strip(phrase).split(Regex("\\s+")).filter { it.length > 2 }
-        if (want.isEmpty()) return heard.isNotEmpty()
-        val hits = want.count { heard.contains(it) }
-        return hits >= (want.size + 1) / 2      // نصف الكلمات فأكثر
-    }
-
-    private fun replySpeech(ok: Boolean) {
-        webView?.evaluateJavascript(
-            "try{ window.__noorSpeech && window.__noorSpeech($ok) }catch(e){}", null
-        )
-    }
-
     override fun onResume() {
         super.onResume()
         if (blockerView != null) refreshStatus()
@@ -253,7 +169,6 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         ticker.removeCallbacks(tick)
-        adminPanel?.stopTicking()      // لا يعمل مؤقّت اللوحة والتطبيق في الخلف
     }
 
     /* ─────────── شريط الصلاة القادمة ─────────── */
@@ -299,22 +214,19 @@ class MainActivity : Activity() {
             text = "قفل الصلاة"
             setOnClickListener { showBlocker() }
         }
-        tabAdmin = Button(this).apply {
             text = "لوحة التحكّم"
             setOnClickListener { showAdmin() }
         }
         bar.addView(tabWeb, lp)
         bar.addView(tabBlock, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        bar.addView(tabAdmin, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         return bar
     }
 
-    /** 0 = الأذكار · 1 = قفل الصلاة · 2 = لوحة التحكّم */
+    /** 0 = الأذكار · 1 = قفل الصلاة */
     private fun markTabs(which: Int) {
         // نصّ التبويب المُطفأ كان أبيض على أبيض — غير مرئيّ
         val on = Color.parseColor("#8E5C2C"); val off = Color.parseColor("#FFFFFF")
         val onT = Color.parseColor("#FFFFFF"); val offT = Color.parseColor("#2B2A31")
-        listOf(tabWeb, tabBlock, tabAdmin).forEachIndexed { i, b ->
             b.setBackgroundColor(if (i == which) on else off)
             b.setTextColor(if (i == which) onT else offT)
             b.textSize = 13f
@@ -324,7 +236,6 @@ class MainActivity : Activity() {
     /* ─────────── تبويب الأذكار والقرآن ─────────── */
     private fun showWeb() {
         markTabs(0)
-        adminPanel?.stopTicking()
         content.removeAllViews()
 
         if (webView == null) {
@@ -391,10 +302,7 @@ class MainActivity : Activity() {
                         }
                     }
                 }
-                // جسر يسمح للمدرّب والتحدّي بفكّ القفل، وللإنصات للذكر
-                addJavascriptInterface(
-                    NoorBridge(this@MainActivity) { p -> listenForDhikr(p) }, "NoorApp"
-                )
+                addJavascriptInterface(NoorBridge(this@MainActivity), "NoorApp")
                 loadUrl(NOOR_WEB)
             }
         }
@@ -404,26 +312,11 @@ class MainActivity : Activity() {
     /* ─────────── تبويب قفل الصلاة ─────────── */
     private fun showBlocker() {
         markTabs(1)
-        adminPanel?.stopTicking()
         content.removeAllViews()
         if (blockerView == null) blockerView = buildBlockerUi()
         content.addView(blockerView)
         refreshStatus()
     }
-
-    /* ─────────── تبويب لوحة التحكّم ─────────── */
-    private fun showAdmin() {
-        markTabs(2)
-        content.removeAllViews()
-        if (adminPanel == null) {
-            adminPanel = AdminPanel(this)
-            adminView = adminPanel!!.build()
-        }
-        adminPanel?.renderAll()
-        adminPanel?.startTicking()
-        content.addView(adminView)
-    }
-
     /** يقول بصراحة أي إذن ناقص — فهذان ما يُسكتان الأذان غالباً */
     private fun paintReady(v: TextView) {
         val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -455,463 +348,273 @@ class MainActivity : Activity() {
         setPadding(0, 0, 0, dp(8))
     }
 
+    /* ─────────── قطع التصميم ─────────── */
+
+    /** بطاقة بيضاء بحوافّ ناعمة — الوحدة البصرية الوحيدة في الشاشة */
+    private fun card(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(16), dp(14), dp(16), dp(16))
+        background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = dp(18).toFloat()
+            setColor(Color.parseColor("#FFFFFF"))
+            setStroke(dp(1), Color.parseColor("#E6DFD2"))
+        }
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { bottomMargin = dp(12) }
+    }
+
+    private fun cardTitle(t: String) = TextView(this).apply {
+        text = t
+        textSize = 16.5f
+        setTextColor(Color.parseColor("#2B2A31"))
+        setPadding(0, 0, 0, dp(10))
+    }
+
+    /** سطر: عنوان يمين، قيمة أو مفتاح يسار */
+    private fun row(label: String, right: View): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, dp(7), 0, dp(7))
+        addView(TextView(this@MainActivity).apply {
+            text = label
+            textSize = 15f
+            setTextColor(Color.parseColor("#2B2A31"))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(right)
+    }
+
+    private fun toggle(on: Boolean, change: (Boolean) -> Unit) = android.widget.Switch(this).apply {
+        isChecked = on
+        setOnCheckedChangeListener { _, v -> change(v) }
+    }
+
+    private fun hint(t: String) = TextView(this).apply {
+        text = t
+        textSize = 12.5f
+        setTextColor(Color.parseColor("#8A8275"))
+        setPadding(0, dp(2), 0, 0)
+    }
+
+    /** عدّاد ‏–‏ ‏+‏ بدل المسطرة: أدقّ بالإصبع وأقصر على الشاشة */
+    private fun stepper(value: Int, min: Int, max: Int, step: Int,
+                        unit: String, change: (Int) -> Unit): LinearLayout {
+        var v = value
+        val out = TextView(this).apply {
+            textSize = 15f
+            setTextColor(Color.parseColor("#8E5C2C"))
+            gravity = Gravity.CENTER
+            minWidth = dp(92)
+        }
+        fun paint() { out.text = "$v $unit" }
+        paint()
+
+        fun btn(sign: String, delta: Int) = TextView(this).apply {
+            text = sign
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setTextColor(Color.parseColor("#2B2A31"))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat()
+                setColor(Color.parseColor("#F3EEE4"))
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(38), dp(34))
+            setOnClickListener {
+                v = (v + delta).coerceIn(min, max)
+                paint(); change(v)
+            }
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(btn("−", -step))
+            addView(out)
+            addView(btn("+", step))
+        }
+    }
+
+    /* ─────────── الشاشة ─────────── */
     private fun buildBlockerUi(): ScrollView {
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(14), dp(18), dp(26))
+            setPadding(dp(14), dp(14), dp(14), dp(26))
         }
 
-        /* حالة الخدمة */
-        col.addView(header("١ · تشغيل نور"))
-        statusView = TextView(this).apply {
-            textSize = 15f
-            setPadding(0, 0, 0, dp(9))
-        }
-        col.addView(statusView)
-        col.addView(Button(this).apply {
-            text = "افتح إعدادات إمكانية الوصول"
+        /* ١ — الحالة */
+        val c1 = card()
+        statusView = TextView(this).apply { textSize = 15f }
+        c1.addView(statusView)
+        c1.addView(Button(this).apply {
+            text = "فتح إعدادات إمكانية الوصول"
             setOnClickListener {
-                Toast.makeText(this@MainActivity,
-                    "ابحث عن «نور — قفل الصلاة» وفعّله", Toast.LENGTH_LONG).show()
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                Toast.makeText(this@MainActivity, "ابحث عن «نور» وفعّله", Toast.LENGTH_LONG).show()
             }
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8) }
         })
-
-        /* ما الذي قد يُسكت الأذان */
-        col.addView(header("٢ · الأذونات"))
-        col.addView(body("اضغط الأحمر منهما:"))
-        val readyView = body("")
-        col.addView(readyView)
-
-        col.addView(Button(this).apply {
-            text = "⏱ اسمح بالمنبّهات الدقيقة"
-            setOnClickListener {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    try {
-                        startActivity(Intent(
-                            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                            android.net.Uri.parse("package:" + packageName)
-                        ))
-                    } catch (e: Exception) {
-                        startActivity(Intent(Settings.ACTION_DATE_SETTINGS))
-                    }
-                } else {
-                    Toast.makeText(this@MainActivity, "مسموح أصلاً على نسخة أندرويد عندك ✓",
-                        Toast.LENGTH_SHORT).show()
-                }
-            }
-        })
-
-        col.addView(Button(this).apply {
-            text = "🔋 استثنِ نور من توفير البطارية"
-            setOnClickListener {
-                try {
-                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    Toast.makeText(this@MainActivity,
-                        "اختر «الكل» ثم «نور» ثم «عدم التحسين»", Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                    try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch (_: Exception) {}
-                }
-            }
-        })
-
-        col.addView(body("وفي شاومي وأوبو: فعّل «التشغيل التلقائي» لنور."))
-
-        /* تنبيه الأذان */
-        col.addView(header("٣ · الأذان"))
-
-        col.addView(CheckBox(this).apply {
-            text = "فعّل تنبيه الأذان"
-            textSize = 15.5f
-            setTextColor(Color.parseColor("#2B2A31"))
-            isChecked = Prefs.notifyEnabled(this@MainActivity)
-            setOnCheckedChangeListener { _, checked ->
-                Prefs.setNotifyEnabled(this@MainActivity, checked)
-                PrayerAlarm.schedule(this@MainActivity)
-                Toast.makeText(
-                    this@MainActivity,
-                    if (checked) "سيصلك التنبيه عند كل أذان" else "أُوقف تنبيه الأذان",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        })
-
-        col.addView(CheckBox(this).apply {
-            text = "ارفع الأذان بصوت مؤذّن (بدل نغمة قصيرة)"
-            textSize = 15.5f
-            setTextColor(Color.parseColor("#2B2A31"))
-            isChecked = Prefs.adhanSound(this@MainActivity)
-            setOnCheckedChangeListener { _, checked ->
-                Prefs.setAdhanSound(this@MainActivity, checked)
-                if (!checked) AdhanPlayer.stop(this@MainActivity)
-                Toast.makeText(
-                    this@MainActivity,
-                    if (checked) "سيُرفع الأذان كاملاً عند كل وقت" else "ستصلك نغمة تنبيه قصيرة",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        })
-
-        col.addView(body("يُسمع ولو كان الهاتف صامتاً."))
-
-        /* زرّان للتجربة والإيقاف — لا تنتظر وقت الصلاة لتعرف أنه يعمل */
-        col.addView(LinearLayout(this).apply {
+        val ready = hint("")
+        paintReady(ready)
+        c1.addView(ready)
+        c1.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             addView(Button(this@MainActivity).apply {
-                text = "🔊 جرّب الأذان"
-                setOnClickListener { AdhanPlayer.play(this@MainActivity, "التجربة") }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                text = "المنبّهات"
+                textSize = 13f
+                setOnClickListener {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try {
+                            startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                android.net.Uri.parse("package:" + packageName)))
+                        } catch (e: Exception) {}
+                    }
+                }
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             })
             addView(Button(this@MainActivity).apply {
-                text = "■ أوقف"
-                setOnClickListener { AdhanPlayer.stop(this@MainActivity) }
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                text = "البطارية"
+                textSize = 13f
+                setOnClickListener {
+                    try { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+                    catch (e: Exception) {}
+                }
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             })
         })
+        col.addView(c1)
 
-        /* أوقات اليوم */
-        col.addView(header("٤ · أوقات اليوم"))
-        timesView = TextView(this).apply {
-            textSize = 14.5f
-            setTextColor(Color.parseColor("#2B2A31"))
-            setLineSpacing(0f, 1.45f)
+        /* ٢ — الأذان والقفل */
+        val c2 = card()
+        c2.addView(cardTitle("🕌 وقت الصلاة"))
+        c2.addView(row("تنبيه الأذان", toggle(Prefs.notifyEnabled(this)) {
+            Prefs.setNotifyEnabled(this, it); PrayerAlarm.schedule(this)
+        }))
+        c2.addView(row("صوت مؤذّن", toggle(Prefs.adhanSound(this)) {
+            Prefs.setAdhanSound(this, it); if (!it) AdhanPlayer.stop(this)
+        }))
+        c2.addView(row("اقفل الهاتف", toggle(Prefs.enabled(this)) { Prefs.setEnabled(this, it) }))
+        c2.addView(row("المدة", stepper(Prefs.lockMinutes(this), 5, 45, 5, "دقيقة") {
+            Prefs.setLockMinutes(this, it)
+        }))
+        val lockState = hint("")
+        fun paintLock() {
+            lockState.text = if (ScreenLock.isAdmin(this))
+                "✅ يُقفل الهاتف نفسه" else "الشاشة لن تُقفل — امنح الصلاحية"
+            lockState.setTextColor(Color.parseColor(
+                if (ScreenLock.isAdmin(this)) "#4A72A8" else "#C0564E"))
         }
-        col.addView(timesView)
-
-        /* مدة القفل */
-        col.addView(header("٥ · مدة القفل"))
-        col.addView(body("يُقفل الهاتف كاملاً ويُفتح وحده. الاتصال والطوارئ متاحة."))
-        /* قفل الشاشة القسريّ */
-        val lockState = body("")
-        fun paintLockState() {
-            if (ScreenLock.isAdmin(this)) {
-                lockState.text = "✅ مفعّل — سيُقفل هاتفك تلقائياً عند الأذان"
-                lockState.setTextColor(Color.parseColor("#4A72A8"))
-            } else {
-                lockState.text = "❌ غير مفعّل — سيُمنع الاستخدام لكن الشاشة لن تُقفل"
-                lockState.setTextColor(Color.parseColor("#C0564E"))
-            }
-        }
-
-        col.addView(lockState)
-        paintLockState()
-        col.addView(Button(this).apply {
-            text = "🔒 فعّل قفل الشاشة القسريّ"
+        paintLock()
+        c2.addView(lockState)
+        c2.addView(Button(this).apply {
+            text = if (ScreenLock.isAdmin(this@MainActivity)) "إلغاء صلاحية القفل" else "امنح صلاحية القفل"
+            textSize = 13f
             setOnClickListener {
                 if (ScreenLock.isAdmin(this@MainActivity)) {
-                    android.app.AlertDialog.Builder(this@MainActivity)
-                        .setTitle("إلغاء قفل الشاشة")
-                        .setMessage("سيتوقّف إطفاء الشاشة تلقائياً عند الأذان. أمتأكّد؟")
-                        .setPositiveButton("ألغِ") { _, _ ->
-                            ScreenLock.revoke(this@MainActivity); paintLockState()
-                        }
-                        .setNegativeButton("رجوع", null).show()
-                } else {
-                    startActivity(ScreenLock.requestIntent(this@MainActivity))
-                }
+                    ScreenLock.revoke(this@MainActivity); paintLock()
+                    text = "امنح صلاحية القفل"
+                } else startActivityForResult(ScreenLock.requestIntent(this@MainActivity), 77)
             }
         })
-        col.addView(body("تفتح الهاتف فتجد شاشة نور فوق كل شيء."))
-        col.addView(body(
-            "قبل حذف التطبيق: ألغِ هذه الصلاحية من هنا أولاً، وإلا منعك النظام من حذفه."
-        ))
-
-        val durLabel = body("${Prefs.lockMinutes(this)} دقيقة")
-        col.addView(durLabel)
-        col.addView(android.widget.SeekBar(this).apply {
-            max = 5
-            progress = (Prefs.lockMinutes(this@MainActivity) - 5) / 5
-            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, fromUser: Boolean) {
-                    val m = 5 + p * 5
-                    durLabel.text = "$m دقيقة"
-                    Prefs.setLockMinutes(this@MainActivity, m)
-                }
-                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
-                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
-            })
+        c2.addView(timesView.apply {
+            textSize = 13f
+            setTextColor(Color.parseColor("#8A8275"))
+            setPadding(0, dp(10), 0, 0)
         })
+        col.addView(c2)
 
-        /* نظام النقاط */
-        col.addView(header("٦ · النقاط"))
-        col.addView(body("الضغطات تشتري دقائق."))
-        col.addView(body("ولا تُصرف إلا وأنت داخل التطبيقات المحظورة."))
-
-        val chState = body("")
-        col.addView(CheckBox(this).apply {
-            text = "فعّل نظام النقاط"
-            textSize = 15.5f
-            setTextColor(Color.parseColor("#2B2A31"))
-            isChecked = ChallengeLock.enabled(this@MainActivity)
-            setOnCheckedChangeListener { _, on ->
-                ChallengeLock.setEnabled(this@MainActivity, on)
-                renderChallengeState(chState)
-                Toast.makeText(this@MainActivity,
-                    if (on) "فُعّل — اكسب رصيداً لتستخدم التطبيقات المحظورة"
-                    else "أُوقف نظام النقاط", Toast.LENGTH_SHORT).show()
-            }
+        /* ٣ — تحدّي الاستغفار */
+        val c3 = card()
+        c3.addView(cardTitle("💪 تحدّي الاستغفار"))
+        c3.addView(row("تفعيل", toggle(ChallengeLock.enabled(this)) {
+            ChallengeLock.setEnabled(this, it)
+        }))
+        c3.addView(row("كل", stepper(ChallengeLock.intervalMin(this), 15, 240, 15, "دقيقة") {
+            ChallengeLock.setIntervalMin(this, it)
+        }))
+        c3.addView(row("الضغطات", stepper(ChallengeLock.reps(this), 5, 50, 5, "ضغطة") {
+            ChallengeLock.setReps(this, it)
+        }))
+        c3.addView(row("تكسب", stepper(Credit.minutesPerRep(this), 1, 10, 1, "د/ضغطة") {
+            Credit.setMinutesPerRep(this, it)
+        }))
+        c3.addView(hint("ضع الهاتف تحت صدرك — حسّاس القرب يعدّ."))
+        c3.addView(Button(this).apply {
+            text = "جرّب التحدّي"
+            textSize = 13f
+            setOnClickListener { startActivity(Intent(this@MainActivity, ChallengeActivity::class.java)) }
         })
-        col.addView(chState)
+        col.addView(c3)
 
-        col.addView(body("كم دقيقة تكسبها كل ضغطة؟"))
-        val perRepLabel = body("${Credit.minutesPerRep(this)} دقيقة لكل ضغطة")
-        col.addView(perRepLabel)
-        col.addView(android.widget.SeekBar(this).apply {
-            max = 4   // ١ ٢ ٣ ٥ ١٠
-            val steps = intArrayOf(1, 2, 3, 5, 10)
-            progress = steps.indexOf(Credit.minutesPerRep(this@MainActivity)).coerceAtLeast(1)
-            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
-                    Credit.setMinutesPerRep(this@MainActivity, steps[p])
-                    perRepLabel.text = "${steps[p]} دقيقة لكل ضغطة"
-                    renderChallengeState(chState)
-                }
-                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
-                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
-            })
-        })
-
-        col.addView(body("عدد الضغطات المطلوبة"))
-        val repsLabel = body("${ChallengeLock.reps(this)} ضغطة")
-        col.addView(repsLabel)
-        col.addView(android.widget.SeekBar(this).apply {
-            max = 5   // ٥ ١٠ ١٥ ٢٠ ٣٠ ٥٠
-            val steps = intArrayOf(5, 10, 15, 20, 30, 50)
-            progress = steps.indexOf(ChallengeLock.reps(this@MainActivity)).coerceAtLeast(1)
-            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, u: Boolean) {
-                    repsLabel.text = "${steps[p]} ضغطة"
-                    ChallengeLock.setReps(this@MainActivity, steps[p])
-                    renderChallengeState(chState)
-                }
-                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
-                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
-            })
-        })
-
-        col.addView(body("الذكر الذي تقوله مع كل ضغطة"))
-        val phrases = listOf(
-            "أَسْتَغْفِرُ اللهَ", "الْحَمْدُ لِلّٰهِ", "اللهُ أَكْبَرُ",
-            "سُبْحَانَ اللهِ", "لَا إِلٰهَ إِلَّا اللهُ"
-        )
-        val phraseBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        fun paintPhrases() {
-            phraseBox.removeAllViews()
-            for (ph in phrases) {
-                val chosen = ChallengeLock.phrase(this@MainActivity) == ph
-                phraseBox.addView(Button(this@MainActivity).apply {
-                    text = ph
-                    textSize = 15f
-                    setBackgroundColor(Color.parseColor(if (chosen) "#B07A46" else "#FFFFFF"))
-                    setTextColor(Color.parseColor(if (chosen) "#FFFFFF" else "#2B2A31"))
-                    setOnClickListener {
-                        ChallengeLock.setPhrase(this@MainActivity, ph)
-                        paintPhrases()
-                    }
-                }, LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = dp(6) })
-            }
-        }
-        paintPhrases()
-        col.addView(phraseBox)
-
-        col.addView(Button(this).apply {
-            text = "💪 جرّب التحدّي الآن"
-            setOnClickListener { openChallenge() }
-        }, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(8) })
-
-        renderChallengeState(chState)
-
-        /* اختيار التطبيقات */
-        col.addView(header("٧ · التطبيقات المحظورة"))
-        col.addView(body("لتحدّي الاستغفار وحده — قفل الصلاة يقفل الهاتف كلّه."))
-
-        countView = TextView(this).apply {
-            textSize = 15f
-            setPadding(0, dp(4), 0, dp(10))
-        }
-        col.addView(countView)
-
-        /* أزرار سريعة */
-        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val qlp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        quick.addView(Button(this).apply {
-            text = "اختر الشائعة"
-            setOnClickListener {
-                val installed = allApps.map { it.packageName }.toSet()
-                var added = 0
-                for (p in COMMON_DISTRACTIONS) if (p in installed && selected.add(p)) added++
-                save(quiet = true)
-                renderApps()
-                Toast.makeText(this@MainActivity, "أُضيف $added تطبيقاً", Toast.LENGTH_SHORT).show()
-            }
-        }, qlp)
-        quick.addView(Button(this).apply {
-            text = "امسح الكل"
-            setOnClickListener {
-                selected.clear()
-                save(quiet = true)
-                renderApps()
-                Toast.makeText(this@MainActivity, "أُلغي حظر كل التطبيقات", Toast.LENGTH_SHORT).show()
-            }
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        col.addView(quick)
-
-        /* بحث */
-        col.addView(EditText(this).apply {
-            hint = "ابحث عن تطبيق…"
+        /* ٤ — التطبيقات */
+        val c4 = card()
+        c4.addView(cardTitle("📵 التطبيقات المحظورة"))
+        val search = EditText(this).apply {
+            hint = "اكتب اسم التطبيق…"
             textSize = 15f
             setTextColor(Color.parseColor("#2B2A31"))
-            setHintTextColor(Color.parseColor("#7B7468"))
-            addTextChangedListener(object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) {
-                    filter = s?.toString()?.trim() ?: ""
-                    renderApps()
-                }
-                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            })
+            setHintTextColor(Color.parseColor("#A79F91"))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(12).toFloat()
+                setColor(Color.parseColor("#F7F3EC"))
+                setStroke(dp(1), Color.parseColor("#E6DFD2"))
+            }
+            setPadding(dp(12), dp(11), dp(12), dp(11))
+        }
+        c4.addView(search)
+        suggestBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        c4.addView(suggestBox)
+        appsBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(6), 0, 0)
+        }
+        c4.addView(appsBox)
+        search.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                filter = s?.toString()?.trim() ?: ""
+                renderSuggestions()
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-
-        appsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(appsBox)
-
         loadApps()
-        renderApps()
-
-        /* زر تأكيد واضح — الحفظ فوري لكن المستخدم يحتاج أن يرى ذلك */
-        col.addView(Button(this).apply {
-            text = "✓ تم — احفظ وارجع"
-            textSize = 17f
-            setBackgroundColor(Color.parseColor("#B07A46"))
-            setTextColor(Color.parseColor("#FFFFFF"))
-            setPadding(0, dp(14), 0, dp(14))
-            setOnClickListener {
-                Prefs.setBlockedApps(this@MainActivity, selected)
-                Toast.makeText(
-                    this@MainActivity,
-                    "✅ تم الحفظ — ${selected.size} تطبيق سيُمنع وقت الصلاة",
-                    Toast.LENGTH_LONG
-                ).show()
-                showWeb()
-            }
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
-
-        col.addView(TextView(this).apply {
-            text = "\nكل تغيير يُحفظ فوراً — الزر للتأكيد والرجوع فقط.\n\n" +
-                   "ملاحظة: لا يقرأ التطبيق محتوى شاشتك إطلاقاً — يعرف فقط اسم التطبيق المفتوح."
-            textSize = 12f
-            setTextColor(Color.parseColor("#7B7468"))
-            setPadding(0, dp(14), 0, 0)
-        })
+        renderChosen()
+        col.addView(c4)
 
         return ScrollView(this).apply {
-            setBackgroundColor(Color.parseColor("#EFE9DD"))
+            setBackgroundColor(Color.parseColor("#F3EEE4"))
             addView(col)
         }
     }
 
-    /**
-     * نسأل عمّا يُفتح بأيقونة لا عن كل ما هو مثبّت.
-     *
-     * getInstalledApplications يحتاج QUERY_ALL_PACKAGES، وجوجل بلاي
-     * تقصره على أنواعٍ لسنا منها. وسؤال «أرني ما له أيقونة» يعطينا
-     * القائمة نفسها التي كنّا نعرضها — فقد كنّا نُسقط ما عداها أصلاً.
-     */
-    private fun loadApps() {
+    /** مطابقات ما يكتبه — خمسة على الأكثر، لا قائمة الهاتف كلّها */
+    private fun renderSuggestions() {
+        if (!::suggestBox.isInitialized) return
+        suggestBox.removeAllViews()
+        val q = filter.lowercase()
+        if (q.length < 2) return
         val pm = packageManager
-        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        allApps = pm.queryIntentActivities(launcher, 0)
-            .mapNotNull { it.activityInfo?.applicationInfo }
-            .distinctBy { it.packageName }
-            .filter { it.packageName != packageName }
-            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 || selected.contains(it.packageName) }
-            .sortedBy { pm.getApplicationLabel(it).toString() }
-    }
-
-    /** يحدّث العدّاد ويُظهر أن الاختيار محفوظ */
-    private fun updateCount(justSaved: Boolean = false) {
-        val n = selected.size
-        countView.text = when {
-            n == 0 -> "لم تختر أي تطبيق بعد"
-            justSaved -> "✅ محفوظ — $n تطبيق محظور وقت الصلاة"
-            else -> "$n تطبيق محظور وقت الصلاة"
-        }
-        countView.setTextColor(
-            when {
-                n == 0 -> Color.parseColor("#7B7468")
-                n > 15 -> Color.parseColor("#C0564E")
-                else -> Color.parseColor("#4A72A8")
+        allApps.asSequence()
+            .filter { !selected.contains(it.packageName) }
+            .filter { pm.getApplicationLabel(it).toString().lowercase().contains(q) }
+            .take(5)
+            .forEach { app ->
+                suggestBox.addView(TextView(this).apply {
+                    text = "＋  " + pm.getApplicationLabel(app)
+                    textSize = 14.5f
+                    setTextColor(Color.parseColor("#4A72A8"))
+                    setPadding(dp(10), dp(10), dp(10), dp(10))
+                    setOnClickListener {
+                        selected.add(app.packageName)
+                        Prefs.setBlockedApps(this@MainActivity, selected)
+                        filter = ""
+                        suggestBox.removeAllViews()
+                        renderChosen()
+                    }
+                })
             }
-        )
     }
-
-    private fun renderApps() {
-        val pm = packageManager
-        appsBox.removeAllViews()
-        updateCount()
-
-        val list = allApps.filter {
-            filter.isEmpty() ||
-            pm.getApplicationLabel(it).toString().contains(filter, ignoreCase = true)
-        }
-
-        if (list.isEmpty()) {
-            appsBox.addView(body("لا يوجد تطبيق بهذا الاسم."))
-            return
-        }
-
-        // المحظورة أولاً كي يراها بوضوح
-        val ordered = list.sortedByDescending { selected.contains(it.packageName) }
-
-        for (app in ordered) {
-            val pkg = app.packageName
-            appsBox.addView(CheckBox(this).apply {
-                text = pm.getApplicationLabel(app).toString()
-                textSize = 15f
-                setTextColor(
-                    if (selected.contains(pkg)) Color.parseColor("#8D5F33") else Color.parseColor("#2B2A31")
-                )
-                isChecked = selected.contains(pkg)
-                setOnCheckedChangeListener { _, checked ->
-                    if (checked) selected.add(pkg) else selected.remove(pkg)
-                    save(quiet = true)
-                    updateCount(justSaved = true)
-                    setTextColor(
-                        if (checked) Color.parseColor("#8D5F33") else Color.parseColor("#2B2A31")
-                    )
-                }
-            })
-        }
-    }
-
-    /** يعرض رصيدك الآن وقيمة الجولة القادمة */
-    private fun renderChallengeState(v: TextView) {
-        if (!ChallengeLock.enabled(this)) {
-            v.text = "نظام النقاط متوقّف"
-            v.setTextColor(Color.parseColor("#7B7468"))
-            return
-        }
-        val reward = "الجولة: ${ChallengeLock.reps(this)} ضغطة = ${Credit.rewardMinutes(this)} دقيقة"
-        if (Credit.isEmpty(this)) {
-            v.text = "🔒 رصيدك صفر — أتمّ جولة لتكسب\n$reward"
-            v.setTextColor(Color.parseColor("#C0564E"))
-        } else {
-            val flow = if (Credit.isSpending(this)) "⏳ يُصرف الآن" else "⏸ متوقّف — لست في تطبيق محظور"
-            v.text = "💎 رصيدك ${Credit.format(this)}  ·  $flow\n$reward"
-            v.setTextColor(Color.parseColor("#4A72A8"))
-        }
-    }
-
-    private fun save(quiet: Boolean = false) {
-        Prefs.setBlockedApps(this, selected)
-        if (!quiet) Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show()
-    }
-
     private fun refreshStatus() {
         val on = isServiceEnabled()
         statusView.text = if (on) "✅ الخدمة مفعّلة — الحظر يعمل" else "⛔ الخدمة غير مفعّلة"

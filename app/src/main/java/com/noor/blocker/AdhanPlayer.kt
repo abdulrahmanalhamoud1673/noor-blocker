@@ -80,7 +80,6 @@ class AdhanPlayer : Service() {
         try {
             startForeground(NOTIF_ID, buildNotification(prayer))
         } catch (e: Exception) {
-            EventLog.add(this, EventLog.ADHAN, "رُفضت الخدمة الأمامية — تشغيل مباشر")
         }
 
         // نُبقي المعالج مستيقظاً حتى ينتهي الأذان ولو نام الهاتف

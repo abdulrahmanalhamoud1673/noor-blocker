@@ -121,7 +121,7 @@ object PrayerAlarm {
 }
 
 /**
- * يستقبل التنبيه: يجدول التالي أولاً، ثمّ يرفع الأذان ويقفل الهاتف.
+ * يستقبل التنبيه: يجدول التالي أولاً، ثمّ يرفع الأذان.
  *
  * ولماذا الجدولة أولاً؟ لأنها كانت آخر سطر، فكان أي عطل قبلها يقطع
  * سلسلة الأذان إلى الأبد: لا أذان، ولا موعد بعده. الآن مهما حدث
@@ -134,7 +134,6 @@ class AdhanReceiver : BroadcastReceiver() {
 
         val name = intent.getStringExtra(PrayerAlarm.EXTRA_PRAYER) ?: "الصلاة"
         PrayerAlarm.createChannel(ctx)
-        EventLog.add(ctx, EventLog.ADHAN, "أذان " + name)
 
         if (Prefs.adhanSound(ctx)) {
             // أذان كامل بصوت مؤذّن عبر خدمة أمامية حتى لا يُقطع بعد ثوانٍ.
@@ -143,51 +142,11 @@ class AdhanReceiver : BroadcastReceiver() {
             try {
                 AdhanPlayer.play(ctx, name)
             } catch (e: Exception) {
-                EventLog.add(ctx, EventLog.ADHAN, "تعذّر تشغيل الخدمة — إشعار بدلاً منها")
                 notifyAdhan(ctx, name, loud = true)
             }
         } else {
             notifyAdhan(ctx, name, loud = false)
         }
-
-        // قفل الهاتف بعد ثوانٍ قليلة.
-        //
-        // كان هذا postDelayed عادياً، والنظام يُجمّد التطبيق فور انتهاء
-        // onReceive — فلا يأتي الموعد أبداً والهاتف نائم. goAsync مع قفل
-        // إيقاظ يُبقي المستقبِل حيّاً حتى ننتهي فعلاً.
-        if (!Prefs.enabled(ctx) || PrayerLock.current(ctx) == null) return
-
-        val pending = goAsync()
-        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-        val wake = try {
-            pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "noor:adhanLock")
-                .apply { acquire(20_000L) }
-        } catch (e: Exception) { null }
-
-        val h = android.os.Handler(android.os.Looper.getMainLooper())
-        h.postDelayed({
-            try {
-                if (PrayerLock.current(ctx) != null) {
-                    EventLog.add(ctx, EventLog.PRAYER,
-                        "قُفل الهاتف لصلاة " + name + " — " + Prefs.lockMinutes(ctx) + " دقيقة")
-                    ctx.startActivity(Intent(ctx, LockActivity::class.java).apply {
-                        addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK or
-                            Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                            Intent.FLAG_ACTIVITY_NO_ANIMATION
-                        )
-                    })
-                }
-            } catch (_: Exception) {}
-
-            // ثم نُطفئ الشاشة فعلياً: إن كان الهاتف بيده أُقفل،
-            // وإن كان مغلقاً بقي مغلقاً. نمهله ثوانيَ ليقرأ السبب.
-            h.postDelayed({
-                try { if (PrayerLock.current(ctx) != null) ScreenLock.lockNow(ctx) } catch (_: Exception) {}
-                try { if (wake?.isHeld == true) wake.release() } catch (_: Exception) {}
-                pending.finish()
-            }, 6000)
-        }, 1500)
     }
 
     /** إشعار الأذان — بصوت عالٍ وملء الشاشة حين تتعذّر الخدمة */

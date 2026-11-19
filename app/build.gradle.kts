@@ -11,8 +11,8 @@ android {
         applicationId = "com.noor.blocker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 28
-        versionName = "16.0"
+        versionCode = 29
+        versionName = "17.0"
     }
 
     // توقيعٌ ثابت بملفٍّ نملك مساره.

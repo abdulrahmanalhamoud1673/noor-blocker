@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- لعرض الأذكار والقرآن داخل التطبيق -->
+    <!-- لعرض الأذكار والقرآن -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- لمدرّب الصلاة بالكاميرا -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-
-    <!-- لتنبيه الأذان في وقته بدقة، وإعادة جدولته بعد إعادة التشغيل -->
+    <!-- لتنبيه الأذان في وقته، وإعادة جدولته بعد إعادة التشغيل -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -38,41 +33,8 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".LockActivity"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:excludeFromRecents="true"
-            android:taskAffinity="com.noor.blocker.lock"
-            android:theme="@style/LockTheme" />
-
-        <!-- مدير الجهاز: صلاحية قفل الشاشة وحدها، لطلبها من المستخدم -->
-        <receiver
-            android:name=".NoorDeviceAdmin"
-            android:exported="true"
-            android:permission="android.permission.BIND_DEVICE_ADMIN">
-            <meta-data
-                android:name="android.app.device_admin"
-                android:resource="@xml/device_admin" />
-            <intent-filter>
-                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
-            </intent-filter>
-        </receiver>
-
-        <activity
-            android:name=".ChallengeActivity"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:excludeFromRecents="true"
-            android:screenOrientation="portrait"
-            android:theme="@style/LockTheme" />
-
         <receiver
             android:name=".AdhanReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".ChallengeReceiver"
             android:exported="false" />
 
         <receiver
@@ -89,27 +51,6 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <service
-            android:name=".BlockerService"
-            android:exported="true"
-            android:label="@string/service_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
-
     </application>
-    <queries>
-        <!-- ما يُفتح بأيقونة من الشاشة الرئيسية: هذا كلّ ما نحتاجه
-             لعرض قائمة الاختيار، وهو مسموح بلا QUERY_ALL_PACKAGES -->
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
-    </queries>
 
 </manifest>
